@@ -59,8 +59,8 @@ def validate_main_config(config: Dict[str, Any]) -> bool:
         "mongodb-stream-processor-instance-url",
         "stream-processor-prefix",
         "kafka-connection-name",
-        "mongodb-source-cluster-name",
-        "mongodb-source-connection-name"
+        "mongodb-cluster-name",
+        "mongodb-connection-name"
     ]
     
     for field in required_fields:
@@ -402,6 +402,18 @@ def extract_group_id_and_tenant_from_url(stream_processor_url: str) -> tuple:
 def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) -> None:
     """Process all connector configuration files in the specified folder."""
     
+    # Check Atlas CLI authentication first - stop all processing if not authenticated
+    try:
+        auth_check = subprocess.run(['atlas', 'auth', 'whoami'], capture_output=True, text=True, timeout=10)
+        if auth_check.returncode != 0:
+            print("✗ Not authenticated with Atlas CLI. Please run: atlas auth login")
+            print("✗ All processing stopped due to authentication failure")
+            return
+    except Exception as e:
+        print(f"✗ Error checking Atlas CLI authentication: {e}")
+        print("✗ All processing stopped due to authentication failure")
+        return
+    
     folder_path = Path(configs_folder)
     
     if not folder_path.exists():
@@ -437,12 +449,12 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     
     # Create MongoDB source connection
     if "mongodb-group-id" in main_config and "mongodb-tenant-name" in main_config:
-        print(f"\nCreating shared MongoDB source connection: {main_config['mongodb-source-connection-name']}")
+        print(f"\nCreating shared MongoDB source connection: {main_config['mongodb-connection-name']}")
         mongodb_connection_created, mongodb_connection_was_created = create_mongodb_source_connection(
             main_config["mongodb-group-id"],
             main_config["mongodb-tenant-name"],
-            main_config["mongodb-source-cluster-name"],
-            main_config["mongodb-source-connection-name"]
+            main_config["mongodb-cluster-name"],
+            main_config["mongodb-connection-name"]
         )
     
     # Create Kafka connection
@@ -512,7 +524,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         connection_password,
                         main_config["mongodb-stream-processor-instance-url"],
                         main_config["stream-processor-prefix"],
-                        main_config["mongodb-source-connection-name"],
+                        main_config["mongodb-connection-name"],
                         main_config["kafka-connection-name"],
                         database,
                         collection,
@@ -578,8 +590,8 @@ def main():
     print(f"  Stream Processor URL: {main_config['mongodb-stream-processor-instance-url']}")
     print(f"  Stream Processor Prefix: {main_config['stream-processor-prefix']}")
     print(f"  Kafka Connection Name: {main_config['kafka-connection-name']}")
-    print(f"  MongoDB Source Cluster Name: {main_config['mongodb-source-cluster-name']}")
-    print(f"  MongoDB Source Connection Name: {main_config['mongodb-source-connection-name']}")
+    print(f"  MongoDB Source Cluster Name: {main_config['mongodb-cluster-name']}")
+    print(f"  MongoDB Source Connection Name: {main_config['mongodb-connection-name']}")
     
     # Process connector configs
     process_connector_configs(main_config, args.configs_folder)

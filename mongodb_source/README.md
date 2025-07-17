@@ -54,8 +54,8 @@ Create a JSON file with your Confluent cluster and MongoDB Atlas information:
     "mongodb-stream-processor-instance-url": "mongodb://your-stream-processor-instance-url/",
     "stream-processor-prefix": "kafka-stream",
     "kafka-connection-name": "kafka-connection-name",
-    "mongodb-source-cluster-name": "Cluster0",
-    "mongodb-source-connection-name": "mongodb-source-connection",
+    "mongodb-cluster-name": "Cluster0",
+    "mongodb-connection-name": "mongodb-source-connection",
     "mongodb-group-id": "your-24-char-mongodb-group-id",
     "mongodb-tenant-name": "your-stream-instance-name"
 }
@@ -69,8 +69,8 @@ Create a JSON file with your Confluent cluster and MongoDB Atlas information:
     "mongodb-stream-processor-instance-url": "mongodb://atlas-stream-67d97a1d8820c02d373b6f28-gkmrk.virginia-usa.a.query.mongodb.net/",
     "stream-processor-prefix": "kafka-consumer",
     "kafka-connection-name": "kafka-connection-name",
-    "mongodb-source-cluster-name": "Cluster0",
-    "mongodb-source-connection-name": "mongodb-source-connection",
+    "mongodb-cluster-name": "Cluster0",
+    "mongodb-connection-name": "mongodb-source-connection",
     "mongodb-group-id": "507f1f77bcf86cd799439011",
     "mongodb-tenant-name": "my-stream-instance"
 }
