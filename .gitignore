@@ -2,7 +2,8 @@ command.txt
 mongodb_source/config.json
 mongodb_sink/config.json
 mongodb_source/sources
-mongodb_source/resources
+local_resources/
 *__pycache__/
 topics
 sources
+.claude

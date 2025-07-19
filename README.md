@@ -4,12 +4,12 @@ This project provides automated setup tools for creating end-to-end streaming pi
 
 ## Overview
 
-The project consists of two complementary tools that handle different streaming directions:
+The project consists of two complementary scripts that handle different streaming directions:
 
-- **[MongoDB Source](./mongodb_source/)**: Streams data from MongoDB collections to Kafka topics
-- **[MongoDB Sink](./mongodb_sink/)**: Streams data from Kafka topics to MongoDB collections
+- **create_source_processors.py**: Streams data from MongoDB collections to Kafka topics
+- **create_sink_processors.py**: Streams data from Kafka topics to MongoDB collections
 
-Both tools use the same underlying infrastructure and share connection configurations, making it easy to create bidirectional streaming pipelines.
+Both scripts use shared utility functions and connection configurations, making it easy to create bidirectional streaming pipelines.
 
 ## Architecture
 
@@ -57,46 +57,50 @@ Both tools use the same underlying infrastructure and share connection configura
 
 2. **Install dependencies**:
    ```bash
-   pip install requests
+   pip install -r requirements.txt
    ```
 
 ### Running Tests
 
-The project includes comprehensive unit tests to ensure code quality and reliability. You can run tests in several ways:
+The project includes comprehensive unit and integration tests to ensure code quality and reliability.
+
+#### Test Types
+
+- **Unit Tests**: Fast, mocked tests that don't require external services
+- **Integration Tests**: Full end-to-end tests that require Atlas CLI authentication
 
 #### Run All Tests
 ```bash
-# Run all tests with basic output
+# Run all tests (unit + integration)
 python3 run_tests.py
 
-# Run all tests with verbose output
+# Run with verbose output
 python3 run_tests.py -v
 ```
 
-#### Run Specific Test Modules
+#### Run Specific Test Types
 ```bash
-# Run tests for shared utility functions
-python3 run_tests.py tests.test_common
+# Run only unit tests (fast, no auth required)
+python3 run_tests.py --unit-only
 
-# Run with custom pattern (future test files)
-python3 run_tests.py -p "test_*.py"
+# Run only integration tests (requires Atlas CLI auth)
+python3 run_tests.py --integration-only
 ```
 
-#### Manual Test Execution
-```bash
-# Run tests using Python's built-in unittest
-python3 -m unittest discover tests/ -v
-
-# Run specific test file directly
-python3 tests/test_common.py
+#### Test Structure
+```
+tests/
+├── unit/                     # Unit tests (mocked, fast)
+│   ├── test_auth.py         # Authentication function tests
+│   ├── test_connections.py  # Connection creation tests
+│   ├── test_json_loading.py # JSON file loading tests
+│   └── test_validation.py   # Configuration validation tests
+└── integration/             # Integration tests (requires auth)
+    ├── test_source_script.py # Source script end-to-end tests
+    └── test_sink_script.py   # Sink script end-to-end tests
 ```
 
-The test suite includes:
-- **Common utility function tests**: JSON loading, authentication, connection creation
-- **Mock-based testing**: No external dependencies required for testing
-- **Comprehensive coverage**: Various scenarios including error conditions
-
-**Note**: Tests use mocking to avoid requiring actual Atlas CLI authentication or external services.
+**Note**: Unit tests use mocking to avoid requiring actual Atlas CLI authentication or external services. Integration tests require `atlas auth login` to be completed.
 
 ### Quick Start
 
@@ -105,19 +109,22 @@ The test suite includes:
 3. **Run the appropriate tool**:
    ```bash
    # For MongoDB → Kafka streaming
-   cd mongodb_source
-   python create_source_processors.py config.json ./sources/
+   python3 create_source_processors.py config.json ./sources/
    
    # For Kafka → MongoDB streaming
-   cd mongodb_sink
-   python create_sink_processors.py config.json ./topics/
+   python3 create_sink_processors.py config.json ./topics/
    ```
 
-## Tools
+## Scripts
 
-### MongoDB Source Tool
+### create_source_processors.py
 
 **Purpose**: Stream data from MongoDB collections to Kafka topics
+
+**Usage**:
+```bash
+python3 create_source_processors.py <config.json> <sources_folder>
+```
 
 **Key Features**:
 - Creates Kafka topics automatically
@@ -125,19 +132,20 @@ The test suite includes:
 - Handles authentication and connection management
 - Supports bulk collection processing
 
-**[📖 Full Documentation](./mongodb_source/README.md)**
-
-### MongoDB Sink Tool
+### create_sink_processors.py
 
 **Purpose**: Stream data from Kafka topics to MongoDB collections
+
+**Usage**:
+```bash
+python3 create_sink_processors.py <config.json> <topics_folder>
+```
 
 **Key Features**:
 - Supports single or multiple topics per collection
 - Configurable offset reset behavior
 - Automatic collection creation
 - Handles authentication and connection management
-
-**[📖 Full Documentation](./mongodb_sink/README.md)**
 
 ## Configuration
 
@@ -173,50 +181,52 @@ See the individual tool documentation for detailed configuration examples.
 ```
 confluent_config_to_asp/
 ├── README.md                     # This file
+├── requirements.txt              # Python dependencies
+├── config.json                   # Main configuration file
 ├── common.py                     # Shared utility functions
-├── run_tests.py                  # Test runner script
-├── tests/                        # Unit tests
-│   ├── __init__.py
-│   └── test_common.py           # Tests for shared functions
-├── mongodb_source/               # MongoDB → Kafka streaming tool
-│   ├── README.md
-│   ├── create_source_processors.py
-│   ├── config.json
-│   └── sources/
-│       ├── collection1.json
-│       └── collection2.json
-└── mongodb_sink/                 # Kafka → MongoDB streaming tool
-    ├── README.md
-    ├── create_sink_processors.py
-    ├── config.json
-    └── topics/
-        ├── topic1.json
-        └── topic2.json
+├── create_source_processors.py   # MongoDB → Kafka streaming script
+├── create_sink_processors.py     # Kafka → MongoDB streaming script
+├── run_tests.py                  # Unified test runner
+├── tests/                        # Test suite
+│   ├── unit/                    # Unit tests (fast, mocked)
+│   │   ├── test_auth.py
+│   │   ├── test_connections.py
+│   │   ├── test_json_loading.py
+│   │   └── test_validation.py
+│   └── integration/             # Integration tests (requires auth)
+│       ├── test_source_script.py
+│       └── test_sink_script.py
+├── sources/                      # Source connector configs
+│   ├── collection1.json
+│   └── collection2.json
+├── topics/                       # Sink connector configs
+│   ├── topic1.json
+│   └── topic2.json
+└── mongodb_source/               # Legacy folder (reference)
+    └── mongodb_sink/             # Legacy folder (reference)
 ```
 
 ## Common Workflows
 
 ### Setting Up Bidirectional Streaming
 
-1. **Configure shared settings** in both `mongodb_source/config.json` and `mongodb_sink/config.json`
-2. **Create source configurations** for collections you want to stream to Kafka
-3. **Create sink configurations** for topics you want to stream to MongoDB
-4. **Run both tools**:
+1. **Configure shared settings** in the main `config.json` file
+2. **Create source configurations** in the `sources/` folder for collections you want to stream to Kafka
+3. **Create sink configurations** in the `topics/` folder for topics you want to stream to MongoDB
+4. **Run both scripts**:
    ```bash
    # Set up MongoDB → Kafka streaming
-   cd mongodb_source
-   python create_source_processors.py config.json ./sources/
+   python3 create_source_processors.py config.json ./sources/
    
    # Set up Kafka → MongoDB streaming
-   cd mongodb_sink
-   python create_sink_processors.py config.json ./topics/
+   python3 create_sink_processors.py config.json ./topics/
    ```
 
 ### Migrating from Confluent Connectors
 
 1. **Export your existing connector configurations**
-2. **Adapt the configurations** to match the tool formats (minimal changes required)
-3. **Run the appropriate tool** to create equivalent stream processors
+2. **Adapt the configurations** to match the script formats (minimal changes required)
+3. **Run the appropriate script** to create equivalent stream processors
 4. **Test and validate** the streaming pipeline
 5. **Decommission old connectors** once validation is complete
 
@@ -254,9 +264,10 @@ confluent_config_to_asp/
 
 ### Getting Help
 
-For tool-specific issues, consult the individual README files:
-- [MongoDB Source Troubleshooting](./mongodb_source/README.md#troubleshooting)
-- [MongoDB Sink Troubleshooting](./mongodb_sink/README.md#troubleshooting)
+For script-specific issues:
+- Check the script output for detailed error messages
+- Run unit tests to verify your environment: `python3 run_tests.py --unit-only`
+- Use verbose mode for more detailed logging: `python3 create_source_processors.py config.json sources/ -v`
 
 ## API References
 
@@ -275,8 +286,8 @@ Feel free to submit issues and enhancement requests! When contributing:
    ```bash
    python3 run_tests.py -v
    ```
-2. **Add tests** for new functionality in the `tests/` directory
-3. **Test changes** with both source and sink tools
+2. **Add tests** for new functionality in the `tests/unit/` or `tests/integration/` directories
+3. **Test changes** with both source and sink scripts
 4. **Update relevant documentation**
 5. **Ensure backward compatibility** with existing configurations
 6. **Add appropriate error handling**
