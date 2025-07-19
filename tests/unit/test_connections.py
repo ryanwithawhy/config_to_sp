@@ -27,11 +27,9 @@ class TestCreateKafkaConnection(unittest.TestCase):
         
         with patch('builtins.open', mock_open()) as mock_file:
             result = create_kafka_connection(
-                "mongodb://test-url/",
                 "test-group-id",
                 "test-tenant",
                 "test-connection",
-                "test-cluster-id",
                 "https://test-endpoint.com:443",
                 "test-api-key",
                 "test-api-secret"
@@ -53,11 +51,9 @@ class TestCreateKafkaConnection(unittest.TestCase):
         
         with patch('builtins.open', mock_open()) as mock_file:
             result = create_kafka_connection(
-                "mongodb://test-url/",
                 "test-group-id",
                 "test-tenant",
                 "test-connection",
-                "test-cluster-id",
                 "https://test-endpoint.com:443",
                 "test-api-key",
                 "test-api-secret"
@@ -77,11 +73,9 @@ class TestCreateKafkaConnection(unittest.TestCase):
         
         with patch('builtins.open', mock_open()) as mock_file:
             result = create_kafka_connection(
-                "mongodb://test-url/",
                 "test-group-id",
                 "test-tenant",
                 "test-connection",
-                "test-cluster-id",
                 "https://test-endpoint.com:443",
                 "test-api-key",
                 "test-api-secret"
@@ -94,11 +88,9 @@ class TestCreateKafkaConnection(unittest.TestCase):
         """Test connection creation timeout."""
         with patch('builtins.open', mock_open()):
             result = create_kafka_connection(
-                "mongodb://test-url/",
                 "test-group-id",
                 "test-tenant",
                 "test-connection",
-                "test-cluster-id",
                 "https://test-endpoint.com:443",
                 "test-api-key",
                 "test-api-secret"

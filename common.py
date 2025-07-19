@@ -168,11 +168,9 @@ def create_mongodb_connection(
 
 
 def create_kafka_connection(
-    stream_processor_url: str,
     group_id: str,
     tenant_name: str,
     connection_name: str,
-    confluent_cluster_id: str,
     confluent_rest_endpoint: str,
     kafka_api_key: str,
     kafka_api_secret: str

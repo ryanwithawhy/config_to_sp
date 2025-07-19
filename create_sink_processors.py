@@ -143,11 +143,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     if first_connector_config:
         print(f"\nCreating Kafka connection: {main_config['kafka-connection-name']}")
         kafka_connection_created, kafka_connection_was_created = create_kafka_connection(
-            main_config["mongodb-stream-processor-instance-url"],
             main_config["mongodb-group-id"],
             main_config["mongodb-tenant-name"],
             main_config["kafka-connection-name"],
-            main_config["confluent-cluster-id"],
             main_config["confluent-rest-endpoint"],
             first_connector_config["kafka.api.key"],
             first_connector_config["kafka.api.secret"]
