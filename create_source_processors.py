@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 # Import shared functions
-from common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor
+from common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor, create_topic
 
 
 
@@ -56,75 +56,6 @@ def validate_connector_config(config: Dict[str, Any], filename: str) -> bool:
 
 
 
-def create_topic(
-    rest_endpoint: str,
-    cluster_id: str,
-    api_key: str,
-    api_secret: str,
-    topic_name: str
-) -> bool:
-    """Create a Kafka topic using the Confluent REST API."""
-    
-    url = f"{rest_endpoint}/kafka/v3/clusters/{cluster_id}/topics"
-    
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "topic_name": topic_name,
-        "partitions_count": 3,
-        "configs": [
-            {"name": "cleanup.policy", "value": "delete"}
-        ]
-    }
-    
-    try:
-        response = requests.post(
-            url,
-            auth=(api_key, api_secret),
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
-        
-        if response.status_code == 201:
-            print(f"✓ Successfully created topic: {topic_name}")
-            return True
-        elif response.status_code == 409:
-            print(f"⚠ Topic already exists: {topic_name}")
-            return True
-        else:
-            # Check if the error is specifically error code 40002
-            try:
-                response_json = response.json()
-                error_code = response_json.get('error_code')
-                if error_code == 40002:
-                    print(f"ℹ Topic {topic_name} is already created")
-                    return True
-            except (json.JSONDecodeError, KeyError):
-                pass
-            
-            print(f"✗ Failed to create topic {topic_name}: HTTP {response.status_code}")
-            print(f"  Response: {response.text}")
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"✗ Network error creating topic {topic_name}: {e}")
-        return False
-    except Exception as e:
-        print(f"✗ Unexpected error creating topic {topic_name}: {e}")
-        return False
-
-
-
-
-def extract_group_id_and_tenant_from_url(stream_processor_url: str) -> tuple:
-    """Extract group ID and tenant name from stream processor instance URL."""
-    # This is a helper function to parse the URL and extract required info
-    # The actual implementation depends on the URL format MongoDB provides
-    # For now, we'll assume these need to be provided separately in config
-    return None, None
 
 
 def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) -> None:

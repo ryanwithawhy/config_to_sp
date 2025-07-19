@@ -6,6 +6,7 @@ Common utility functions shared between source and sink processor creation scrip
 import json
 import subprocess
 import sys
+import requests
 from typing import Dict, Any, Optional, Union, List
 
 
@@ -393,4 +394,65 @@ def create_stream_processor(
         return False
     except Exception as e:
         print(f"✗ Unexpected error creating stream processor {stream_processor_name}: {e}")
+        return False
+
+
+def create_topic(
+    rest_endpoint: str,
+    cluster_id: str,
+    api_key: str,
+    api_secret: str,
+    topic_name: str
+) -> bool:
+    """Create a Kafka topic using the Confluent REST API."""
+    
+    url = f"{rest_endpoint}/kafka/v3/clusters/{cluster_id}/topics"
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "topic_name": topic_name,
+        "partitions_count": 3,
+        "configs": [
+            {"name": "cleanup.policy", "value": "delete"}
+        ]
+    }
+    
+    try:
+        response = requests.post(
+            url,
+            auth=(api_key, api_secret),
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 201:
+            print(f"✓ Successfully created topic: {topic_name}")
+            return True
+        elif response.status_code == 409:
+            print(f"⚠ Topic already exists: {topic_name}")
+            return True
+        else:
+            # Check if the error is specifically error code 40002
+            try:
+                response_json = response.json()
+                error_code = response_json.get('error_code')
+                if error_code == 40002:
+                    print(f"ℹ Topic {topic_name} is already created")
+                    return True
+            except (json.JSONDecodeError, KeyError):
+                pass
+            
+            print(f"✗ Failed to create topic {topic_name}: HTTP {response.status_code}")
+            print(f"  Response: {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"✗ Network error creating topic {topic_name}: {e}")
+        return False
+    except Exception as e:
+        print(f"✗ Unexpected error creating topic {topic_name}: {e}")
         return False
