@@ -5,3 +5,4 @@ mongodb_source/sources
 mongodb_source/resources
 *__pycache__/
 topics
+sources

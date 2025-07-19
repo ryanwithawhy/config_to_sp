@@ -60,6 +60,44 @@ Both tools use the same underlying infrastructure and share connection configura
    pip install requests
    ```
 
+### Running Tests
+
+The project includes comprehensive unit tests to ensure code quality and reliability. You can run tests in several ways:
+
+#### Run All Tests
+```bash
+# Run all tests with basic output
+python3 run_tests.py
+
+# Run all tests with verbose output
+python3 run_tests.py -v
+```
+
+#### Run Specific Test Modules
+```bash
+# Run tests for shared utility functions
+python3 run_tests.py tests.test_common
+
+# Run with custom pattern (future test files)
+python3 run_tests.py -p "test_*.py"
+```
+
+#### Manual Test Execution
+```bash
+# Run tests using Python's built-in unittest
+python3 -m unittest discover tests/ -v
+
+# Run specific test file directly
+python3 tests/test_common.py
+```
+
+The test suite includes:
+- **Common utility function tests**: JSON loading, authentication, connection creation
+- **Mock-based testing**: No external dependencies required for testing
+- **Comprehensive coverage**: Various scenarios including error conditions
+
+**Note**: Tests use mocking to avoid requiring actual Atlas CLI authentication or external services.
+
 ### Quick Start
 
 1. **Configure your main settings** in `config.json` files (see tool-specific documentation)
@@ -135,6 +173,11 @@ See the individual tool documentation for detailed configuration examples.
 ```
 confluent_config_to_asp/
 ├── README.md                     # This file
+├── common.py                     # Shared utility functions
+├── run_tests.py                  # Test runner script
+├── tests/                        # Unit tests
+│   ├── __init__.py
+│   └── test_common.py           # Tests for shared functions
 ├── mongodb_source/               # MongoDB → Kafka streaming tool
 │   ├── README.md
 │   ├── create_source_processors.py
@@ -228,10 +271,15 @@ The tools interact with the following APIs:
 
 Feel free to submit issues and enhancement requests! When contributing:
 
-1. Test changes with both source and sink tools
-2. Update relevant documentation
-3. Ensure backward compatibility with existing configurations
-4. Add appropriate error handling
+1. **Run the test suite** to ensure your changes don't break existing functionality:
+   ```bash
+   python3 run_tests.py -v
+   ```
+2. **Add tests** for new functionality in the `tests/` directory
+3. **Test changes** with both source and sink tools
+4. **Update relevant documentation**
+5. **Ensure backward compatibility** with existing configurations
+6. **Add appropriate error handling**
 
 ## License
 
