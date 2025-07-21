@@ -154,10 +154,10 @@ tests/
 3. **Run the appropriate tool**:
    ```bash
    # For MongoDB → Kafka streaming
-   python3 create_source_processors.py config.json ./sources/
+   python3 create_source_processors.py <main_config_file.json> <folder_with_source_configs/>
    
    # For Kafka → MongoDB streaming
-   python3 create_sink_processors.py config.json ./topics/
+   python3 create_sink_processors.py <main_config_file.json> <folder_with_sink_configs/>
    ```
 
 ## Scripts
