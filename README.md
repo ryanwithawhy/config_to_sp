@@ -105,7 +105,52 @@ tests/
 ### Quick Start
 
 1. **Configure your main settings** in `config.json` files (see tool-specific documentation)
-2. **Create connector configuration files** for each collection/topic you want to process
+2. **Create connector configuration files** for each collection/topic you want to process.
+
+**For Sources**
+```
+ {
+     "connector.class": "MongoDbAtlasSource",
+     "name": "<my-connector-name>",
+     "kafka.auth.mode": "KAFKA_API_KEY",
+     "kafka.api.key": "<my-kafka-api-key>",
+     "kafka.api.secret": "<my-kafka-api-secret>",
+     "topic.prefix": "<topic-prefix>",
+     "connection.host": "<database-host-address>",
+     "connection.user": "<database-username>",
+     "connection.password": "<database-password>",
+     "database": "<database-name>",
+     "collection": "<database-collection-name>",
+     "poll.await.time.ms": "5000",
+     "poll.max.batch.size": "1000",
+     "startup.mode": "copy_existing",
+     "output.data.format": "JSON"
+     "tasks.max": "1"
+}
+```
+
+**For Sinks**
+```
+{
+    "connector.class": "MongoDbAtlasSink",
+    "name": "confluent-mongodb-sink",
+    "kafka.auth.mode": "KAFKA_API_KEY",
+    "kafka.api.key": "<my-kafka-api-key",
+    "kafka.api.secret": "<my-kafka-api-secret>",
+    "input.data.format" : "JSON",
+    "connection.host": "<database-host-address>",
+    "connection.user": "<my-username>",
+    "connection.password": "<my-password>",
+    "topics": "<kafka-topic-name>",
+    "max.num.retries": "3",
+    "retries.defer.timeout": "5000",
+    "max.batch.size": "0",
+    "database": "<database-name>",
+    "collection": "<collection-name>",
+    "tasks.max": "1"
+}
+```
+
 3. **Run the appropriate tool**:
    ```bash
    # For MongoDB → Kafka streaming
