@@ -37,7 +37,8 @@ def validate_main_config(config: Dict[str, Any]) -> bool:
         "mongodb-connection-name",
         "mongodb-cluster-name",
         "mongodb-group-id",
-        "mongodb-tenant-name"
+        "mongodb-tenant-name",
+        "mongodb-connection-role"
     ]
     
     for field in required_fields:
@@ -108,7 +109,7 @@ def create_mongodb_connection(
     tenant_name: str,
     cluster_name: str,
     connection_name: str,
-    role_name: str = "readAnyDatabase",
+    role_name: str,
     role_type: str = "BUILT_IN"
 ) -> tuple[bool, bool]:
     """Create a MongoDB Atlas Stream Processing connection using Atlas CLI."""
@@ -275,7 +276,10 @@ def create_stream_processor(
         auto_offset_reset: Auto offset reset strategy for sink processors
         
     Returns:
-        bool: True if stream processor was created successfully, False otherwise
+        tuple: (success: bool, was_created: bool, processor_name: str)
+               success: True if stream processor was created or already exists, False on error
+               was_created: True if newly created, False if already existed
+               processor_name: Name of the stream processor
     """
     
     # Construct stream processor name
@@ -373,19 +377,19 @@ def create_stream_processor(
             # Check if creation was successful or if it already exists
             if "already exists" in result.stderr.lower() or "duplicate" in result.stderr.lower():
                 print(f"⚠ Stream processor already exists: {stream_processor_name}")
-                return True
+                return True, False, stream_processor_name  # success, not newly created
             else:
                 print(f"✓ Successfully created stream processor: {stream_processor_name}")
-                return True
+                return True, True, stream_processor_name  # success, newly created
         else:
             # Check for already exists error in stderr
             if "already exists" in result.stderr.lower() or "duplicate" in result.stderr.lower():
                 print(f"⚠ Stream processor already exists: {stream_processor_name}")
-                return True
+                return True, False, stream_processor_name  # success, not newly created
             else:
                 print(f"✗ Failed to create stream processor {stream_processor_name}")
                 print(f"  Error: {result.stderr}")
-                return False
+                return False, False, stream_processor_name  # failure
                 
     except subprocess.TimeoutExpired:
         print(f"✗ Timeout creating stream processor {stream_processor_name}")

@@ -106,7 +106,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         main_config["mongodb-tenant-name"],
         main_config["mongodb-cluster-name"],
         main_config["mongodb-connection-name"],
-        role_name="readAnyDatabase"  # Source connections need read access
+        role_name=main_config["mongodb-connection-role"]
     )
     
     # Create Kafka connection
@@ -124,6 +124,8 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     kafka_success_count = 0
     stream_success_count = 0
     stream_processor_success_count = 0
+    stream_processor_created_count = 0
+    existing_processors = []
     total_count = len(json_files)
     
     for json_file in json_files:
@@ -169,7 +171,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                 
                 # Create stream processor if both connections exist
                 if mongodb_connection_created:
-                    stream_processor_success = create_stream_processor(
+                    stream_processor_success, was_created, processor_name = create_stream_processor(
                         connection_user,
                         connection_password,
                         main_config["mongodb-stream-processor-instance-url"],
@@ -184,6 +186,10 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                     
                     if stream_processor_success:
                         stream_processor_success_count += 1
+                        if was_created:
+                            stream_processor_created_count += 1
+                        else:
+                            existing_processors.append(processor_name)
                 else:
                     print(f"⚠ Skipping stream processor creation: MongoDB source connection not available")
             else:
@@ -202,7 +208,11 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         print(f"  Kafka connection: 1/1 {connection_status}")
     else:
         print(f"  Kafka connection: 0/1 created successfully")
-    print(f"  Stream processors: {stream_processor_success_count}/{total_count} created successfully")
+    if existing_processors:
+        existing_names = ", ".join(existing_processors)
+        print(f"  Stream processors: {stream_processor_created_count}/{total_count} created successfully (processors {existing_names} already exist)")
+    else:
+        print(f"  Stream processors: {stream_processor_created_count}/{total_count} created successfully")
 
 
 def main():

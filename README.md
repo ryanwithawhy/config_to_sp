@@ -208,9 +208,14 @@ Both tools use a shared configuration format:
     "mongodb-connection-name": "mongodb-connection-name",
     "mongodb-cluster-name": "Cluster0",
     "mongodb-group-id": "your-24-char-mongodb-group-id",
-    "mongodb-tenant-name": "your-stream-instance-name"
+    "mongodb-tenant-name": "your-stream-instance-name",
+    "mongodb-connection-role": "readWriteAnyDatabase"
 }
 ```
+
+#### Configuration Parameters
+
+- **mongodb-connection-role** (required): Specifies the MongoDB database role to use for the stream processing connection. Common roles include: `readAnyDatabase`, `readWriteAnyDatabase`, `atlasAdmin`
 
 ### Connector Configuration Files
 
