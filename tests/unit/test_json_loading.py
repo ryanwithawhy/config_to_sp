@@ -12,7 +12,7 @@ import json
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from common import load_json_file
+from processors.common import load_json_file
 
 
 class TestLoadJsonFile(unittest.TestCase):

@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Union, List
 
 # Import shared functions
-from common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor
+from .common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor
 
 
 

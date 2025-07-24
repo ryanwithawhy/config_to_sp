@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from common import create_kafka_connection, create_mongodb_connection
+from processors.common import create_kafka_connection, create_mongodb_connection
 
 
 class TestCreateKafkaConnection(unittest.TestCase):

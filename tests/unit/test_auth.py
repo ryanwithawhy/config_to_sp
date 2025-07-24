@@ -11,7 +11,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from common import check_atlas_auth_with_login
+from processors.common import check_atlas_auth_with_login
 
 
 class TestCheckAtlasAuthWithLogin(unittest.TestCase):

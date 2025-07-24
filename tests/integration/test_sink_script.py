@@ -16,7 +16,7 @@ import shutil
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from common import check_atlas_auth_with_login
+from processors.common import check_atlas_auth_with_login
 
 
 class TestSinkProcessorScript(unittest.TestCase):
@@ -76,7 +76,7 @@ class TestSinkProcessorScript(unittest.TestCase):
     
     def test_script_loads_config_successfully(self):
         """Test that the script can load and validate the config."""
-        cmd = ['python3', 'create_sink_processors.py', self.temp_config.name, self.temp_dir]
+        cmd = ['python3', 'processors/sink.py', self.temp_config.name, self.temp_dir]
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -90,7 +90,7 @@ class TestSinkProcessorScript(unittest.TestCase):
     
     def test_script_validates_config_fields(self):
         """Test that the script validates all required config fields."""
-        cmd = ['python3', 'create_sink_processors.py', self.temp_config.name, self.temp_dir]
+        cmd = ['python3', 'processors/sink.py', self.temp_config.name, self.temp_dir]
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -108,7 +108,7 @@ class TestSinkProcessorScript(unittest.TestCase):
         empty_dir = tempfile.mkdtemp()
         
         try:
-            cmd = ['python3', 'create_sink_processors.py', self.temp_config.name, empty_dir]
+            cmd = ['python3', 'processors/sink.py', self.temp_config.name, empty_dir]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             # Should handle missing configs gracefully
@@ -122,7 +122,7 @@ class TestSinkProcessorScript(unittest.TestCase):
     
     def test_script_displays_config_summary(self):
         """Test that the script displays the loaded configuration summary."""
-        cmd = ['python3', 'create_sink_processors.py', self.temp_config.name, self.temp_dir]
+        cmd = ['python3', 'processors/sink.py', self.temp_config.name, self.temp_dir]
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -153,7 +153,7 @@ class TestSinkProcessorScript(unittest.TestCase):
         with open(config_file, 'w') as f:
             json.dump(connector_config, f, indent=2)
         
-        cmd = ['python3', 'create_sink_processors.py', self.temp_config.name, self.temp_dir]
+        cmd = ['python3', 'processors/sink.py', self.temp_config.name, self.temp_dir]
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)

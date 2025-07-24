@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from common import validate_main_config
+from processors.common import validate_main_config
 
 
 class TestValidateMainConfig(unittest.TestCase):

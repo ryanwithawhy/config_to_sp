@@ -7,3 +7,5 @@ local_resources/
 topics
 sources
 .claude
+config.json
+files/
