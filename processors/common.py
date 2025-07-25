@@ -254,6 +254,7 @@ def create_stream_processor(
     database: str,
     collection: str,
     processor_type: str,
+    processor_name: str,
     topic_prefix: Optional[str] = None,
     topics: Optional[Union[str, List[str]]] = None,
     auto_offset_reset: Optional[str] = None
@@ -271,6 +272,7 @@ def create_stream_processor(
         database: Database name
         collection: Collection name
         processor_type: Type of processor ('source' or 'sink')
+        processor_name: Name of the stream processor from config file
         topic_prefix: Topic prefix for source processors (required for source)
         topics: Topics for sink processors (required for sink)
         auto_offset_reset: Auto offset reset strategy for sink processors
@@ -282,8 +284,8 @@ def create_stream_processor(
                processor_name: Name of the stream processor
     """
     
-    # Construct stream processor name
-    stream_processor_name = f"{stream_processor_prefix}_{database}_{collection}"
+    # Use the provided processor name from config
+    stream_processor_name = processor_name
     
     # Create pipeline based on processor type
     if processor_type == "source":
@@ -369,8 +371,6 @@ def create_stream_processor(
     
     try:
         print(f"Creating stream processor: {stream_processor_name}")
-        print(f"  Command: {' '.join(mongosh_cmd[:9])} --eval [JS_COMMAND]")
-        print(f"  JS Command: {js_command}")
         result = subprocess.run(mongosh_cmd, capture_output=True, text=True, timeout=60)
         
         if result.returncode == 0:

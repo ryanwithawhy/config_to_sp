@@ -151,6 +151,18 @@ tests/
 }
 ```
 
+#### Unsupported Sink Configuration Parameters
+
+The following configuration parameters are **not supported** when using stream processors and will cause configurations to be skipped:
+
+- **`timeseries.*`** - Any parameter starting with `timeseries.` (e.g., `timeseries.timestamp.field`, `timeseries.metadata.field`, `timeseries.granularity`)
+  - **Reason**: This converter does not currently support timeseries collections
+  
+- **`delete.on.null.values`** - Parameter for deleting documents when null values are encountered
+  - **Reason**: Not supported in stream processors
+
+If any of these parameters are present in your sink configuration files, those files will be skipped during processing, and a summary will be displayed at the end showing which files had issues and why.
+
 3. **Run the appropriate tool**:
    ```bash
    # For MongoDB → Kafka streaming

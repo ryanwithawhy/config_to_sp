@@ -44,7 +44,7 @@ from .common import load_json_file, create_kafka_connection, check_atlas_auth_wi
 
 def validate_connector_config(config: Dict[str, Any], filename: str) -> bool:
     """Validate a connector configuration file."""
-    required_fields = ["kafka.api.key", "kafka.api.secret", "topic.prefix", "database", "collection", "connection.user", "connection.password"]
+    required_fields = ["name", "kafka.api.key", "kafka.api.secret", "topic.prefix", "database", "collection", "connection.user", "connection.password"]
     
     for field in required_fields:
         if field not in config:
@@ -141,6 +141,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
             continue
         
         # Extract required fields
+        name = connector_config["name"]
         api_key = connector_config["kafka.api.key"]
         api_secret = connector_config["kafka.api.secret"]
         topic_prefix = connector_config["topic.prefix"]
@@ -181,6 +182,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         database,
                         collection,
                         "source",
+                        name,
                         topic_prefix=topic_prefix
                     )
                     

@@ -50,9 +50,16 @@ from .common import load_json_file, create_kafka_connection, check_atlas_auth_wi
 
 
 
-def validate_connector_config(config: Dict[str, Any], filename: str) -> bool:
-    """Validate a connector configuration file."""
+def validate_connector_config(config: Dict[str, Any], filename: str) -> tuple[bool, List[str]]:
+    """Validate a connector configuration file.
+    
+    Returns:
+        tuple: (is_valid: bool, issues: List[str])
+    """
+    issues = []
+    
     required_fields = [
+        "name",
         "kafka.api.key", 
         "kafka.api.secret", 
         "input.data.format",
@@ -63,22 +70,36 @@ def validate_connector_config(config: Dict[str, Any], filename: str) -> bool:
         "collection"
     ]
     
+    # Check for missing required fields
     for field in required_fields:
         if field not in config:
-            print(f"Error: Missing required field '{field}' in {filename}")
-            return False
+            issues.append(f"Missing required field '{field}'")
     
     # Validate topics field (can be string or array)
     topics = config.get("topics")
-    if not isinstance(topics, (str, list)):
-        print(f"Error: 'topics' field must be a string or array in {filename}")
-        return False
+    if topics is not None:
+        if not isinstance(topics, (str, list)):
+            issues.append("'topics' field must be a string or array")
+        elif isinstance(topics, list) and len(topics) == 0:
+            issues.append("'topics' array cannot be empty")
     
-    if isinstance(topics, list) and len(topics) == 0:
-        print(f"Error: 'topics' array cannot be empty in {filename}")
-        return False
+    # Check for unsupported parameters
+    unsupported_params = []
     
-    return True
+    # Check for timeseries parameters
+    for key in config.keys():
+        if key.startswith("timeseries."):
+            unsupported_params.append(f"'{key}' - this converter does not currently support timeseries")
+    
+    # Check for delete.on.null.values
+    if "delete.on.null.values" in config:
+        unsupported_params.append("'delete.on.null.values' - not supported in stream processors")
+    
+    if unsupported_params:
+        issues.extend(unsupported_params)
+    
+    is_valid = len(issues) == 0
+    return is_valid, issues
 
 
 
@@ -116,6 +137,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     print(f"Found {len(json_files)} .json files to process")
     print("-" * 50)
     
+    # Track skipped configurations and issues
+    skipped_configs = {}  # filename -> list of issues
+    
     # Create connections once (using first connector config for Kafka auth)
     kafka_connection_created = False
     kafka_connection_was_created = False
@@ -123,11 +147,16 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     mongodb_connection_was_created = False
     first_connector_config = None
     
+    # Find first valid config for connection setup
     for json_file in json_files:
         connector_config = load_json_file(str(json_file))
-        if connector_config and validate_connector_config(connector_config, json_file.name):
-            first_connector_config = connector_config
-            break
+        if connector_config:
+            is_valid, issues = validate_connector_config(connector_config, json_file.name)
+            if is_valid:
+                first_connector_config = connector_config
+                break
+            else:
+                skipped_configs[json_file.name] = issues
     
     # Create MongoDB sink connection
     print(f"\nCreating MongoDB sink connection: {main_config['mongodb-connection-name']}")
@@ -165,10 +194,14 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
             continue
         
         # Validate connector config
-        if not validate_connector_config(connector_config, json_file.name):
+        is_valid, issues = validate_connector_config(connector_config, json_file.name)
+        if not is_valid:
+            skipped_configs[json_file.name] = issues
+            print(f"✗ Skipping {json_file.name} due to validation issues")
             continue
         
         # Extract required fields
+        name = connector_config["name"]
         database = connector_config["database"]
         collection = connector_config["collection"]
         topics = connector_config["topics"]
@@ -194,6 +227,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                 database,
                 collection,
                 "sink",
+                name,
                 topics=topics,
                 auto_offset_reset=auto_offset_reset
             )
@@ -224,6 +258,16 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         print(f"  Stream processors: {stream_processor_created_count}/{total_count} created successfully (processors {existing_names} already exist)")
     else:
         print(f"  Stream processors: {stream_processor_created_count}/{total_count} created successfully")
+    
+    # Display skipped configurations summary
+    if skipped_configs:
+        print(f"\n⚠ SKIPPED CONFIGURATIONS ({len(skipped_configs)} files):")
+        for filename, issues in skipped_configs.items():
+            print(f"  - {filename}:")
+            for issue in issues:
+                print(f"    • {issue}")
+    else:
+        print(f"\n✓ All configurations processed successfully")
 
 
 def main():

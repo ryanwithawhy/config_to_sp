@@ -50,6 +50,10 @@ def validate_unified_config(config: Dict[str, Any], filename: str) -> bool:
         print(f"Error: Missing required field 'connector.class' in {filename}")
         return False
     
+    if "name" not in config:
+        print(f"Error: Missing required field 'name' in {filename}")
+        return False
+    
     connector_class = config["connector.class"]
     if connector_class not in ["MongoDbAtlasSource", "MongoDbAtlasSink"]:
         print(f"Error: Unsupported connector.class '{connector_class}' in {filename}. Must be 'MongoDbAtlasSource' or 'MongoDbAtlasSink'")

@@ -27,7 +27,8 @@ class TestValidateMainConfig(unittest.TestCase):
             "mongodb-connection-name": "test-mongodb",
             "mongodb-cluster-name": "TestCluster",
             "mongodb-group-id": "507f1f77bcf86cd799439011",
-            "mongodb-tenant-name": "test-tenant"
+            "mongodb-tenant-name": "test-tenant",
+            "mongodb-connection-role": "readWriteAnyDatabase"
         }
         
         result = validate_main_config(valid_config)
@@ -44,7 +45,8 @@ class TestValidateMainConfig(unittest.TestCase):
             "mongodb-connection-name": "test-mongodb",
             "mongodb-cluster-name": "TestCluster",
             "mongodb-group-id": "507f1f77bcf86cd799439011",
-            "mongodb-tenant-name": "test-tenant"
+            "mongodb-tenant-name": "test-tenant",
+            "mongodb-connection-role": "readWriteAnyDatabase"
         }
         
         result = validate_main_config(invalid_config)
@@ -67,6 +69,7 @@ class TestValidateMainConfig(unittest.TestCase):
             "mongodb-cluster-name": "TestCluster",
             "mongodb-group-id": "507f1f77bcf86cd799439011",
             "mongodb-tenant-name": "test-tenant",
+            "mongodb-connection-role": "readWriteAnyDatabase",
             "extra-field": "extra-value",  # Extra field
             "another-extra": 123
         }
@@ -85,7 +88,8 @@ class TestValidateMainConfig(unittest.TestCase):
             "mongodb-connection-name",
             "mongodb-cluster-name",
             "mongodb-group-id",
-            "mongodb-tenant-name"
+            "mongodb-tenant-name",
+            "mongodb-connection-role"
         ]
         
         # Test each field individually by removing it
