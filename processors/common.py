@@ -248,7 +248,6 @@ def create_stream_processor(
     connection_user: str,
     connection_password: str,
     stream_processor_url: str,
-    stream_processor_prefix: str,
     kafka_connection_name: str,
     mongodb_connection_name: str,
     database: str,
@@ -266,7 +265,6 @@ def create_stream_processor(
         connection_user: MongoDB user for authentication
         connection_password: MongoDB password for authentication  
         stream_processor_url: MongoDB stream processor instance URL
-        stream_processor_prefix: Prefix for stream processor name
         kafka_connection_name: Name of the Kafka connection
         mongodb_connection_name: Name of the MongoDB connection
         database: Database name

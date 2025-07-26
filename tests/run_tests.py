@@ -35,7 +35,7 @@ def check_atlas_auth():
         return False
 
 
-def run_unit_tests(verbosity=1, pattern="test*.py", start_dir="tests/unit"):
+def run_unit_tests(verbosity=1, pattern="test*.py", start_dir="unit"):
     """
     Run unit tests (fast, mocked, no external dependencies).
     
@@ -45,7 +45,7 @@ def run_unit_tests(verbosity=1, pattern="test*.py", start_dir="tests/unit"):
     print("🧪 Running Unit Tests (fast, no auth required)")
     print("=" * 50)
     
-    # Get the directory containing this script
+    # Get the directory containing this script (tests directory)
     script_dir = Path(__file__).parent
     test_dir = script_dir / start_dir
     
@@ -58,7 +58,7 @@ def run_unit_tests(verbosity=1, pattern="test*.py", start_dir="tests/unit"):
     suite = loader.discover(
         start_dir=str(test_dir),
         pattern=pattern,
-        top_level_dir=str(script_dir)
+        top_level_dir=str(script_dir.parent)  # Parent directory (project root)
     )
     
     # Count tests
@@ -96,7 +96,7 @@ def run_unit_tests(verbosity=1, pattern="test*.py", start_dir="tests/unit"):
 
 
 
-def run_integration_tests(verbosity=1, pattern="test*.py", start_dir="tests/integration"):
+def run_integration_tests(verbosity=1, pattern="test*.py", start_dir="integration"):
     """
     Run integration tests (requires Atlas CLI authentication).
     
@@ -116,7 +116,7 @@ def run_integration_tests(verbosity=1, pattern="test*.py", start_dir="tests/inte
     
     print("✅ Atlas CLI authentication verified")
     
-    # Get the directory containing this script
+    # Get the directory containing this script (tests directory)
     script_dir = Path(__file__).parent
     test_dir = script_dir / start_dir
     
@@ -129,7 +129,7 @@ def run_integration_tests(verbosity=1, pattern="test*.py", start_dir="tests/inte
     suite = loader.discover(
         start_dir=str(test_dir),
         pattern=pattern,
-        top_level_dir=str(script_dir)
+        top_level_dir=str(script_dir.parent)  # Parent directory (project root)
     )
     
     # Count tests
