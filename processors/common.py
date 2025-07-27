@@ -256,7 +256,8 @@ def create_stream_processor(
     processor_name: str,
     topic_prefix: Optional[str] = None,
     topics: Optional[Union[str, List[str]]] = None,
-    auto_offset_reset: Optional[str] = None
+    auto_offset_reset: Optional[str] = None,
+    enable_dlq: bool = False
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -274,6 +275,7 @@ def create_stream_processor(
         topic_prefix: Topic prefix for source processors (required for source)
         topics: Topics for sink processors (required for sink)
         auto_offset_reset: Auto offset reset strategy for sink processors
+        enable_dlq: Whether to enable DLQ for error handling
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -350,7 +352,21 @@ def create_stream_processor(
     
     # Create JavaScript command for mongosh
     pipeline_json = json.dumps(pipeline)
-    js_command = f'sp.createStreamProcessor("{stream_processor_name}", {pipeline_json})'
+    
+    if enable_dlq:
+        # Create DLQ configuration
+        dlq = {
+            "dlq": {
+                "connectionName": mongodb_connection_name,
+                "db": "dlq",
+                "coll": stream_processor_name
+            }
+        }
+        dlq_json = json.dumps(dlq)
+        js_command = f'sp.createStreamProcessor("{stream_processor_name}", {pipeline_json}, {dlq_json})'
+        print(f"  ✓ DLQ enabled: {dlq['dlq']['db']}.{dlq['dlq']['coll']}")
+    else:
+        js_command = f'sp.createStreamProcessor("{stream_processor_name}", {pipeline_json})'
     
     # Ensure URL ends with exactly one slash
     if not stream_processor_url.endswith('/'):

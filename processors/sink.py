@@ -208,6 +208,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         connection_user = connector_config["connection.user"]
         connection_password = connector_config["connection.password"]
         
+        # Check for DLQ requirement based on errors.tolerance
+        enable_dlq = connector_config.get("errors.tolerance", "").lower() == "all"
+        
         # Handle optional auto offset reset
         auto_offset_reset = connector_config.get("consumer.override.auto.offset.reset")
         if auto_offset_reset and auto_offset_reset not in ["earliest", "latest"]:
@@ -221,7 +224,6 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                 connection_user,
                 connection_password,
                 main_config["mongodb-stream-processor-instance-url"],
-                main_config["stream-processor-prefix"],
                 main_config["kafka-connection-name"],
                 main_config["mongodb-connection-name"],
                 database,
@@ -229,7 +231,8 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                 "sink",
                 name,
                 topics=topics,
-                auto_offset_reset=auto_offset_reset
+                auto_offset_reset=auto_offset_reset,
+                enable_dlq=enable_dlq
             )
             
             if stream_processor_success:

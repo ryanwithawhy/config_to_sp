@@ -142,6 +142,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         
         # Extract required fields
         name = connector_config["name"]
+        
+        # Check for DLQ requirement based on errors.tolerance
+        enable_dlq = connector_config.get("errors.tolerance", "").lower() == "all"
         api_key = connector_config["kafka.api.key"]
         api_secret = connector_config["kafka.api.secret"]
         topic_prefix = connector_config["topic.prefix"]
@@ -176,14 +179,14 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         connection_user,
                         connection_password,
                         main_config["mongodb-stream-processor-instance-url"],
-                        main_config["stream-processor-prefix"],
                         main_config["kafka-connection-name"],
                         main_config["mongodb-connection-name"],
                         database,
                         collection,
                         "source",
                         name,
-                        topic_prefix=topic_prefix
+                        topic_prefix=topic_prefix,
+                        enable_dlq=enable_dlq
                     )
                     
                     if stream_processor_success:
