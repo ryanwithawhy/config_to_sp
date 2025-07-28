@@ -537,4 +537,247 @@ python tests/integration/test_auto_detection.py
 
 4. **Update version information** and release notes
 
-This completes the developer documentation covering the configuration validation system, architecture details, and development workflows.
+## Parameter Extraction Workflow
+
+### Overview
+
+The system extracts parameters from connector configurations and maps them to MongoDB Atlas Stream Processing stage configurations. This process involves three main steps:
+
+1. **Parameter Extraction** - Extract values from connector JSON configuration
+2. **Parameter Passing** - Pass extracted values to `create_stream_processor()` function
+3. **Config Stage Generation** - Add parameters to appropriate `$source.config` or `$emit.config` sections
+
+### Parameter Extraction Process
+
+#### Step 1: Parameter Extraction in `source.py`
+
+Parameters are extracted from the connector configuration using `.get()` methods with appropriate defaults:
+
+```python
+# Extract change stream parameters (with defaults matching CSV config)
+full_document = connector_config.get("change.stream.full.document")  # default is "default" in CSV
+full_document_before_change = connector_config.get("change.stream.full.document.before.change")  # default is "default" in CSV
+publish_full_document_only = connector_config.get("publish.full.document.only")  # default is False in CSV
+pipeline_param = connector_config.get("pipeline")  # default is [] in CSV
+
+# Extract topic naming parameters
+topic_separator = connector_config.get("topic.separator", ".")  # default is "." in CSV
+topic_suffix = connector_config.get("topic.suffix")  # no default in CSV
+
+# Extract producer configuration parameters
+compression_type = connector_config.get("producer.override.compression.type")  # default is "none" in CSV
+```
+
+#### Step 2: Parameter Validation and Conversion
+
+Some parameters require type conversion or validation before passing to stream processor creation:
+
+```python
+# Convert string boolean values to actual booleans for publish.full.document.only
+if isinstance(publish_full_document_only, str):
+    publish_full_document_only = publish_full_document_only.lower() in ('true', '1', 'yes', 'on')
+```
+
+#### Step 3: Parameter Passing to `create_stream_processor()`
+
+All extracted parameters are passed to the `create_stream_processor()` function:
+
+```python
+stream_processor_success, was_created, processor_name = create_stream_processor(
+    connection_user,
+    connection_password,
+    main_config["mongodb-stream-processor-instance-url"],
+    main_config["kafka-connection-name"],
+    main_config["mongodb-connection-name"],
+    database,
+    collection,
+    "source",
+    name,
+    topic_prefix=topic_prefix,
+    enable_dlq=enable_dlq,
+    full_document=full_document,
+    full_document_before_change=full_document_before_change,
+    full_document_only=publish_full_document_only,
+    pipeline=pipeline_param,
+    topic_separator=topic_separator,
+    topic_suffix=topic_suffix,
+    compression_type=compression_type
+)
+```
+
+### Parameter Flow Architecture
+
+```
+Connector Config JSON
+        ↓
+Parameter Extraction (source.py)
+        ↓
+Type Conversion & Validation
+        ↓
+create_stream_processor() Call
+        ↓
+Config Stage Generation (common.py)
+        ↓
+Stream Processing Pipeline JSON
+```
+
+## Config Stage Generation
+
+### Overview
+
+The `create_stream_processor()` function in `common.py` takes extracted parameters and generates the appropriate `$source.config` and `$emit.config` sections for the MongoDB Atlas Stream Processing pipeline.
+
+### Source Stage Config Generation
+
+#### Process
+
+1. **Create Base Source Stage**: Basic `$source` stage with connection, database, and collection
+2. **Build Source Config Object**: Collect all `$source.config` parameters
+3. **Add Config Section**: Only add `config` section if parameters are present
+
+#### Implementation
+
+```python
+# Create $source stage for MongoDB change stream
+source_stage = {
+    "connectionName": mongodb_connection_name,
+    "db": database,
+    "coll": collection
+}
+
+# Add config section if any change stream parameters are provided
+source_config = {}
+
+# Map connector parameters to Stream Processing parameters
+if full_document is not None and full_document != "default":
+    source_config["fullDocument"] = full_document
+
+if full_document_before_change is not None and full_document_before_change != "default":
+    # Map connector "default" to Stream Processing "off"
+    if full_document_before_change == "off":
+        source_config["fullDocumentBeforeChange"] = "off"
+    else:
+        source_config["fullDocumentBeforeChange"] = full_document_before_change
+
+if full_document_only is not None:
+    source_config["fullDocumentOnly"] = full_document_only
+
+# Handle pipeline parameter - convert from string to array if needed
+if pipeline is not None:
+    if isinstance(pipeline, str):
+        try:
+            parsed_pipeline = json.loads(pipeline) if pipeline.strip() else []
+            if parsed_pipeline:  # Only add if not empty
+                source_config["pipeline"] = parsed_pipeline
+        except json.JSONDecodeError as e:
+            print(f"⚠ Warning: Invalid pipeline JSON format: {e}")
+            # Continue without adding pipeline to config
+    elif isinstance(pipeline, list) and pipeline:  # Only add if not empty list
+        source_config["pipeline"] = pipeline
+
+# Add config to source stage if any parameters were set
+if source_config:
+    source_stage["config"] = source_config
+```
+
+#### Generated Source Stage Examples
+
+**Basic Source (no config parameters):**
+```json
+{
+  "$source": {
+    "connectionName": "mongodb-connection",
+    "db": "orders",
+    "coll": "transactions"
+  }
+}
+```
+
+**Source with Config Parameters:**
+```json
+{
+  "$source": {
+    "connectionName": "mongodb-connection",
+    "db": "orders", 
+    "coll": "transactions",
+    "config": {
+      "fullDocument": "whenAvailable",
+      "fullDocumentBeforeChange": "required",
+      "fullDocumentOnly": true,
+      "pipeline": [{"$match": {"operationType": "insert"}}]
+    }
+  }
+}
+```
+
+### Emit Stage Config Generation
+
+#### Process
+
+1. **Create Base Emit Stage**: Basic `$emit` stage with connection and topic
+2. **Build Emit Config Object**: Collect all `$emit.config` parameters  
+3. **Add Config Section**: Only add `config` section if parameters are present
+
+#### Implementation
+
+```python
+# Create $emit stage for Kafka output
+emit_stage = {
+    "connectionName": kafka_connection_name,
+    "topic": topic_name
+}
+
+# Add config section if compression_type is provided
+emit_config = {}
+
+if compression_type is not None:
+    emit_config["compression_type"] = compression_type
+
+# Add config to emit stage if any parameters were set
+if emit_config:
+    emit_stage["config"] = emit_config
+```
+
+#### Generated Emit Stage Examples
+
+**Basic Emit (no config parameters):**
+```json
+{
+  "$emit": {
+    "connectionName": "kafka-connection",
+    "topic": "myapp.orders.transactions"
+  }
+}
+```
+
+**Emit with Config Parameters:**
+```json
+{
+  "$emit": {
+    "connectionName": "kafka-connection", 
+    "topic": "myapp.orders.transactions.events",
+    "config": {
+      "compression_type": "gzip"
+    }
+  }
+}
+```
+
+### Design Principles
+
+#### Conditional Config Addition
+- **Config sections are only added when needed** - Empty config objects are not generated
+- **Default values are handled appropriately** - "default" values are typically ignored
+- **Empty arrays/strings are filtered out** - Only meaningful values are added to config
+
+#### Parameter Validation
+- **Type conversion happens before config generation** - String booleans converted to actual booleans
+- **JSON parsing with error handling** - Pipeline strings are parsed with graceful error handling
+- **CSV validation enforces rules** - All parameters are validated against CSV rules before processing
+
+#### Maintainability
+- **Clear separation of concerns** - Parameter extraction in `source.py`, config generation in `common.py`
+- **Consistent patterns** - All parameters follow the same extraction → validation → passing → config generation flow
+- **Extensible design** - New parameters can be added by following the established pattern
+
+This completes the developer documentation covering the configuration validation system, architecture details, parameter extraction workflow, config stage generation, and development workflows.

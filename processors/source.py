@@ -151,7 +151,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         api_secret = connector_config["kafka.api.secret"]
         topic_prefix = connector_config["topic.prefix"]
         database = connector_config["database"]
-        collection = connector_config["collection"]
+        collection = connector_config.get("collection")  # Optional for source connectors
         connection_user = connector_config["connection.user"]
         connection_password = connector_config["connection.password"]
         
@@ -172,11 +172,18 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         if isinstance(publish_full_document_only, str):
             publish_full_document_only = publish_full_document_only.lower() in ('true', '1', 'yes', 'on')
         
-        # Construct topic name with optional suffix
-        if topic_suffix:
-            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}{topic_separator}{topic_suffix}"
+        # Construct topic name with optional suffix and collection
+        if collection:
+            if topic_suffix:
+                topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}{topic_separator}{topic_suffix}"
+            else:
+                topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}"
         else:
-            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}"
+            # No collection specified - watch entire database
+            if topic_suffix:
+                topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{topic_suffix}"
+            else:
+                topic_name = f"{topic_prefix}{topic_separator}{database}"
         
         # Create Kafka topic
         kafka_success = create_topic(

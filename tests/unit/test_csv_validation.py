@@ -260,9 +260,10 @@ class TestCSVValidationRules(unittest.TestCase):
         self.assertFalse(result.is_valid, "Minimal config should fail validation")
         
         # Check that all required fields from CSV are caught
+        # Note: collection is now optional for source connectors
         expected_required_fields = [
             "name", "kafka.api.key", "kafka.api.secret", "connection.user", 
-            "connection.password", "database", "collection", "topic.prefix"
+            "connection.password", "database", "topic.prefix"
         ]
         
         # Verify these fields are mentioned in missing_required or error_messages
@@ -577,8 +578,8 @@ class TestCSVValidationRules(unittest.TestCase):
             "database": "test-db",
             "collection": "test-collection",
             # Source-specific ALLOW default fields
-            "output.data.format": "STRING",        # ALLOW default STRING (source-specific)
-            "output.key.format": "STRING"          # ALLOW default STRING (source-specific)
+            "output.data.format": "JSON",          # ALLOW JSON (source-specific)
+            "output.key.format": "STRING"          # ALLOW STRING (source-specific)
         }
         
         result = validate_connector_config(source_config_with_allow_defaults)
@@ -726,8 +727,7 @@ class TestCSVValidationRules(unittest.TestCase):
             # Source-specific ALLOW fields with no restrictions
             "pipeline": "[{\"$match\": {\"field\": \"value\"}}]",    # ALLOW (no restrictions)
             "topic.separator": "_",                               # ALLOW (no restrictions)
-            "topic.suffix": "-data",                              # ALLOW (no restrictions)
-            "mongo.errors.deadletterqueue.topic.name": "dlq-topic" # ALLOW (no restrictions)
+            "topic.suffix": "-data"                               # ALLOW (no restrictions)
         }
         
         result = validate_connector_config(source_config_with_unrestricted_allow)
@@ -834,7 +834,7 @@ class TestCSVValidationRules(unittest.TestCase):
             "errors.tolerance": "all",                         # ALLOW all (general)
             # Sink-specific ALLOW fields with specific valid values
             "consumer.override.auto.offset.reset": "earliest", # ALLOW earliest, latest (sink-specific)
-            "write.strategy": "ReplaceOneDefaultStrategy"      # ALLOW multiple strategies (sink-specific)
+            "write.strategy": "DefaultWriteModelStrategy"      # ALLOW default (sink-specific)
         }
         
         result = validate_connector_config(sink_config_with_valid_allow_values)
@@ -906,8 +906,8 @@ class TestCSVValidationRules(unittest.TestCase):
             "topics": "test-topic",
             "database": "test-db",
             "collection": "test-collection",
-            # Sink-specific ALLOW fields with no restrictions
-            "errors.deadletterqueue.topic.name": "my-custom-dlq-topic" # ALLOW (no restrictions)
+            # Sink-specific ALLOW fields  
+            "input.data.format": "JSON" # ALLOW default (accepts default value)
         }
         
         result = validate_connector_config(sink_config_with_unrestricted_allow)

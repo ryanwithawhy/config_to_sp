@@ -251,7 +251,7 @@ def create_stream_processor(
     kafka_connection_name: str,
     mongodb_connection_name: str,
     database: str,
-    collection: str,
+    collection: Optional[str],
     processor_type: str,
     processor_name: str,
     topic_prefix: Optional[str] = None,
@@ -276,7 +276,7 @@ def create_stream_processor(
         kafka_connection_name: Name of the Kafka connection
         mongodb_connection_name: Name of the MongoDB connection
         database: Database name
-        collection: Collection name
+        collection: Collection name (optional for source processors - None means watch entire database)
         processor_type: Type of processor ('source' or 'sink')
         processor_name: Name of the stream processor from config file
         topic_prefix: Topic prefix for source processors (required for source)
@@ -307,18 +307,28 @@ def create_stream_processor(
             print(f"✗ Error: topic_prefix is required for source processors")
             return False
             
-        # Construct topic name with optional suffix
-        if topic_suffix:
-            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}{topic_separator}{topic_suffix}"
+        # Construct topic name with optional suffix and collection
+        if collection:
+            if topic_suffix:
+                topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}{topic_separator}{topic_suffix}"
+            else:
+                topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}"
         else:
-            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}"
+            # No collection specified - watch entire database
+            if topic_suffix:
+                topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{topic_suffix}"
+            else:
+                topic_name = f"{topic_prefix}{topic_separator}{database}"
         
         # Create $source stage for MongoDB change stream
         source_stage = {
             "connectionName": mongodb_connection_name,
-            "db": database,
-            "coll": collection
+            "db": database
         }
+        
+        # Only add collection if specified (None means watch entire database)
+        if collection:
+            source_stage["coll"] = collection
         
         # Add config section if any change stream parameters are provided
         source_config = {}
