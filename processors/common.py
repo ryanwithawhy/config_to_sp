@@ -261,7 +261,10 @@ def create_stream_processor(
     full_document: Optional[str] = None,
     full_document_before_change: Optional[str] = None,
     full_document_only: Optional[bool] = None,
-    pipeline: Optional[Union[str, List[Dict[str, Any]]]] = None
+    pipeline: Optional[Union[str, List[Dict[str, Any]]]] = None,
+    topic_separator: str = ".",
+    topic_suffix: Optional[str] = None,
+    compression_type: Optional[str] = None
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -284,6 +287,9 @@ def create_stream_processor(
         full_document_before_change: Change stream fullDocumentBeforeChange setting ('off', 'whenAvailable', 'required')
         full_document_only: Whether to return only fullDocument content (boolean)
         pipeline: Aggregation pipeline to filter change stream output (string or list of dicts)
+        topic_separator: Separator to use in topic name construction (default: ".")
+        topic_suffix: Optional suffix to append to topic name
+        compression_type: Compression type for Kafka producer (none, gzip, snappy, lz4, zstd)
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -301,8 +307,11 @@ def create_stream_processor(
             print(f"✗ Error: topic_prefix is required for source processors")
             return False
             
-        # Construct topic name
-        topic_name = f"{topic_prefix}.{database}.{collection}"
+        # Construct topic name with optional suffix
+        if topic_suffix:
+            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}{topic_separator}{topic_suffix}"
+        else:
+            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}"
         
         # Create $source stage for MongoDB change stream
         source_stage = {
@@ -347,16 +356,29 @@ def create_stream_processor(
         if source_config:
             source_stage["config"] = source_config
         
+        # Create $emit stage for Kafka output
+        emit_stage = {
+            "connectionName": kafka_connection_name,
+            "topic": topic_name
+        }
+        
+        # Add config section if compression_type is provided
+        emit_config = {}
+        
+        if compression_type is not None:
+            emit_config["compression_type"] = compression_type
+        
+        # Add config to emit stage if any parameters were set
+        if emit_config:
+            emit_stage["config"] = emit_config
+        
         # Create source pipeline with $source (MongoDB) -> $emit (Kafka)
         pipeline = [
             {
                 "$source": source_stage
             },
             {
-                "$emit": {
-                    "connectionName": kafka_connection_name,
-                    "topic": topic_name
-                }
+                "$emit": emit_stage
             }
         ]
         

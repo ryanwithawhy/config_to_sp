@@ -161,12 +161,22 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         publish_full_document_only = connector_config.get("publish.full.document.only")  # default is False in CSV
         pipeline_param = connector_config.get("pipeline")  # default is [] in CSV
         
+        # Extract topic naming parameters
+        topic_separator = connector_config.get("topic.separator", ".")  # default is "." in CSV
+        topic_suffix = connector_config.get("topic.suffix")  # no default in CSV
+        
+        # Extract producer configuration parameters
+        compression_type = connector_config.get("producer.override.compression.type")  # default is "none" in CSV
+        
         # Convert string boolean values to actual booleans for publish.full.document.only
         if isinstance(publish_full_document_only, str):
             publish_full_document_only = publish_full_document_only.lower() in ('true', '1', 'yes', 'on')
         
-        # Construct topic name
-        topic_name = f"{topic_prefix}.{database}.{collection}"
+        # Construct topic name with optional suffix
+        if topic_suffix:
+            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}{topic_separator}{topic_suffix}"
+        else:
+            topic_name = f"{topic_prefix}{topic_separator}{database}{topic_separator}{collection}"
         
         # Create Kafka topic
         kafka_success = create_topic(
@@ -202,7 +212,10 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         full_document=full_document,
                         full_document_before_change=full_document_before_change,
                         full_document_only=publish_full_document_only,
-                        pipeline=pipeline_param
+                        pipeline=pipeline_param,
+                        topic_separator=topic_separator,
+                        topic_suffix=topic_suffix,
+                        compression_type=compression_type
                     )
                     
                     if stream_processor_success:

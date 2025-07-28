@@ -1,0 +1,5 @@
+{
+    "connector.class": "MongoDbAtlasSource",
+    "name": "test-compression-processor",
+    "producer.override.compression.type": "gzip"
+}

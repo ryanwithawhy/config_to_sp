@@ -345,6 +345,152 @@ class TestChangeStreamParameters(unittest.TestCase):
         
         self.assertTrue(len(warning_calls) > 0, "Expected warning message was not printed")
         self.assertTrue(len(value_calls) > 0, "Expected pipeline value message was not printed")
+    
+    @patch('processors.common.subprocess.run')
+    def test_topic_suffix_added_to_emit_topic(self, mock_subprocess):
+        """Test that topic.suffix is added to the $emit topic name."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['topic_suffix'] = 'data'
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify emit stage has suffix in topic name
+        emit_stage = pipeline[1]['$emit']
+        self.assertEqual(emit_stage['topic'], 'test.test_db.test_coll.data')
+    
+    @patch('processors.common.subprocess.run')
+    def test_topic_separator_used_in_topic_name(self, mock_subprocess):
+        """Test that topic.separator is used in topic name construction."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['topic_separator'] = '_'
+        args['topic_suffix'] = 'events'
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify emit stage uses custom separator
+        emit_stage = pipeline[1]['$emit']
+        self.assertEqual(emit_stage['topic'], 'test_test_db_test_coll_events')
+    
+    @patch('processors.common.subprocess.run')
+    def test_no_suffix_uses_default_topic_format(self, mock_subprocess):
+        """Test that without suffix, default topic format is used."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['topic_separator'] = '_'
+        # No topic_suffix provided
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify emit stage uses format without suffix
+        emit_stage = pipeline[1]['$emit']
+        self.assertEqual(emit_stage['topic'], 'test_test_db_test_coll')
+    
+    @patch('processors.common.subprocess.run')
+    def test_compression_type_added_to_emit_config(self, mock_subprocess):
+        """Test that compression_type is added to $emit config."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['compression_type'] = 'gzip'
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify emit stage has compression_type in config
+        emit_stage = pipeline[1]['$emit']
+        self.assertIn('config', emit_stage)
+        self.assertEqual(emit_stage['config']['compression_type'], 'gzip')
+    
+    @patch('processors.common.subprocess.run')
+    def test_no_compression_type_no_emit_config(self, mock_subprocess):
+        """Test that without compression_type, no emit config is added."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        # No compression_type provided
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify emit stage has no config
+        emit_stage = pipeline[1]['$emit']
+        self.assertNotIn('config', emit_stage)
+    
+    @patch('processors.common.subprocess.run')
+    def test_multiple_compression_types_work(self, mock_subprocess):
+        """Test that different compression types work correctly."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        compression_types = ['none', 'gzip', 'snappy', 'lz4', 'zstd']
+        
+        for compression_type in compression_types:
+            with self.subTest(compression_type=compression_type):
+                args = self.base_args.copy()
+                args['compression_type'] = compression_type
+                
+                result = create_stream_processor(**args)
+                
+                # Extract and parse the pipeline
+                call_args = mock_subprocess.call_args[0][0]
+                js_command = call_args[-1]
+                pipeline_start = js_command.find('[')
+                pipeline_end = js_command.rfind(']') + 1
+                pipeline_json = js_command[pipeline_start:pipeline_end]
+                pipeline = json.loads(pipeline_json)
+                
+                # Verify emit stage has correct compression_type
+                emit_stage = pipeline[1]['$emit']
+                self.assertIn('config', emit_stage)
+                self.assertEqual(emit_stage['config']['compression_type'], compression_type)
 
 
 class TestParameterExtraction(unittest.TestCase):
