@@ -167,43 +167,115 @@ def validate_connector_config(config, connector_type=None):
 ### Testing
 The project includes comprehensive unit and integration tests to ensure code quality and reliability.
 
+#### Test Structure
+```
+tests/
+├── run_tests.py              # Main test runner
+├── unit/
+│   └── test_csv_validation.py # CSV validation rule tests
+└── integration/
+    ├── test_integration.py    # E2E tests with real processors
+    ├── integration_configs/   # Test configuration files
+    └── .env.integration       # Integration test environment vars
+```
+
 #### Test Types
 
-- **Unit Tests**: Fast, mocked tests that don't require external services
-- **Integration Tests**: Full end-to-end tests that require Atlas CLI authentication
+- **Unit Tests**: Fast CSV validation rule tests that don't require external services
+- **Integration Tests**: Full end-to-end tests that create real MongoDB Atlas Stream Processors
 
 #### Run All Tests
 ```bash
 # Run all tests (unit + integration)
-python3 run_tests.py
+python tests/run_tests.py
 
 # Run with verbose output
-python3 run_tests.py -v
+python tests/run_tests.py -v
 ```
 
 #### Run Specific Test Types
 ```bash
-# Run only unit tests (fast, no auth required)
-python3 run_tests.py --unit-only
+# Run only unit tests (fast, no external dependencies)
+python tests/run_tests.py --unit-only
 
-# Run only integration tests (requires Atlas CLI auth)
-python3 run_tests.py --integration-only
+# Run only integration tests (requires setup)
+python tests/run_tests.py --integration-only
 ```
 
-**Note**: Unit tests use mocking to avoid requiring actual Atlas CLI authentication or external services. Integration tests require `atlas auth login` to be completed.
+#### Unit Tests
+Located in `tests/unit/test_csv_validation.py`:
+- **IGNORE rule validation**: Tests that ignored fields don't cause validation failures
+- **DISALLOW rule validation**: Tests that disallowed fields cause specific validation errors
+- **REQUIRE rule validation**: Tests that missing required fields cause validation failures
+- **ALLOW rule validation**: Tests that ALLOW fields accept valid values and reject invalid ones
+- **Source vs Sink differentiation**: Tests that source and sink configs use their respective CSV rules
+- **Verbose mode**: Use `-v` flag to see detailed validation output for debugging
 
-#### Config Tests
-Located in `tests/unit/test_config_validator.py`:
-- Test individual validation rule types
-- Test CSV file loading
-- Test validation logic
-- Mock external dependencies
+#### Integration Tests
+Located in `tests/integration/test_integration.py`:
 
-#### Integration Tests  
-Located in `tests/integration/`:
-- `test_real_validation.py` - Tests with actual CSV data
-- `test_auto_detection.py` - Tests auto-detection functionality
-- `test_allow_*_validation.py` - Tests specific validation types
+**Purpose**: Validate that CSV rules work in the full `create_processors.py` pipeline by creating real MongoDB Atlas Stream Processors.
+
+**Setup Requirements**:
+1. **Atlas CLI Authentication**: Tests automatically run `atlas auth login`
+2. **Environment Variables**: Create `tests/integration/.env.integration` with test credentials:
+   ```bash
+   test_kafka_api_key="your-key"
+   test_kafka_api_secret="your-secret"
+   test_db_user="your-username"
+   test_db_password="your-password"
+   test_confluent_cluster_id="your-cluster-id"
+   test_confluent_rest_endpoint="https://your-endpoint:443"
+   test_stream_processor_url="mongodb://your-stream-url/"
+   test_tenant_name="your-tenant"
+   test_group_id="your-group-id"
+   test_cluster_name="your-cluster"
+   test_topic="test_topic"
+   test_database="test_db"
+   ```
+
+**How Integration Tests Work**:
+1. **Discovery**: Automatically finds all `*.json` files in `tests/integration/integration_configs/`
+2. **Config Generation**: Creates complete connector configs by merging test configs with environment variables
+3. **Pipeline Execution**: Runs `create_processors.py` with the generated configs
+4. **Verification**: Uses `mongosh sp.<processor-name>.stats()` to verify processors were created in Atlas
+5. **Cleanup**: Automatically deletes test processors after tests complete
+
+**Adding New Integration Tests**:
+Create minimal JSON files in `tests/integration/integration_configs/` with only the fields you want to test:
+
+```json
+{
+    "connector.class": "MongoDbAtlasSink",
+    "name": "test-processor-name",
+    "consumer.override.auto.offset.reset": "earliest"
+}
+```
+
+The test framework automatically adds required fields (credentials, topics, database, etc.) from environment variables.
+
+**Integration Test Examples**:
+- `sink_auto_offset_earliest.json`: Tests that `consumer.override.auto.offset.reset: "earliest"` works
+- Future tests can validate other ALLOW field combinations, DISALLOW field rejection, etc.
+
+**What Integration Tests Prove**:
+- CSV validation rules work in the full pipeline
+- Stream processors are actually created in MongoDB Atlas
+- Processors can be started and are functional
+- No bugs exist between validation and processor creation
+
+#### Running Tests
+
+```bash
+# Run specific test files
+python tests/unit/test_csv_validation.py -v
+python tests/integration/test_integration.py
+
+# Run CSV validation tests with detailed output
+python tests/unit/test_csv_validation.py -v
+```
+
+**Note**: Integration tests require proper Atlas CLI authentication and valid test credentials. Unit tests have no external dependencies.
 
 #### Running Tests
 ```bash

@@ -35,21 +35,23 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 # Import shared functions
-from .common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor, create_topic
+from .common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor
+from .config_validator import validate_connector_config
 
 
 
 
 
 
-def validate_connector_config(config: Dict[str, Any], filename: str) -> bool:
-    """Validate a connector configuration file."""
-    required_fields = ["name", "kafka.api.key", "kafka.api.secret", "topic.prefix", "database", "collection", "connection.user", "connection.password"]
+def validate_source_config(config: Dict[str, Any], filename: str) -> bool:
+    """Validate a source connector configuration file using CSV-based validation."""
+    # Use CSV-based validation
+    result = validate_connector_config(config)
     
-    for field in required_fields:
-        if field not in config:
-            print(f"Error: Missing required field '{field}' in {filename}")
-            return False
+    if not result.is_valid:
+        for error in result.error_messages:
+            print(f"Error: {error} in {filename}")
+        return False
     
     return True
 
@@ -95,7 +97,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     
     for json_file in json_files:
         connector_config = load_json_file(str(json_file))
-        if connector_config and validate_connector_config(connector_config, json_file.name):
+        if connector_config and validate_source_config(connector_config, json_file.name):
             first_connector_config = connector_config
             break
     
@@ -137,7 +139,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
             continue
         
         # Validate connector config
-        if not validate_connector_config(connector_config, json_file.name):
+        if not validate_source_config(connector_config, json_file.name):
             continue
         
         # Extract required fields

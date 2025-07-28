@@ -365,6 +365,15 @@ def create_stream_processor(
         dlq_json = json.dumps(dlq)
         js_command = f'sp.createStreamProcessor("{stream_processor_name}", {pipeline_json}, {dlq_json})'
         print(f"  ✓ DLQ enabled: {dlq['dlq']['db']}.{dlq['dlq']['coll']}")
+        
+        # Check for DLQ debug flag
+        import sys
+        import os
+        if '-dlq' in sys.argv or os.getenv('DEBUG_DLQ') == 'true':
+            print(f"  🐛 DLQ Debug - JavaScript command:")
+            print(f"     {js_command}")
+            print(f"  🐛 DLQ Config JSON:")
+            print(f"     {dlq_json}")
     else:
         js_command = f'sp.createStreamProcessor("{stream_processor_name}", {pipeline_json})'
     

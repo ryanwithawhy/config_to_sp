@@ -44,62 +44,26 @@ from typing import Dict, Any, Optional, Union, List
 
 # Import shared functions
 from .common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor
+from .config_validator import validate_connector_config
 
 
 
 
 
 
-def validate_connector_config(config: Dict[str, Any], filename: str) -> tuple[bool, List[str]]:
-    """Validate a connector configuration file.
+def validate_sink_config(config: Dict[str, Any], filename: str) -> tuple[bool, List[str]]:
+    """Validate a sink connector configuration file using CSV-based validation.
     
     Returns:
         tuple: (is_valid: bool, issues: List[str])
     """
-    issues = []
+    # Use CSV-based validation
+    result = validate_connector_config(config)
     
-    required_fields = [
-        "name",
-        "kafka.api.key", 
-        "kafka.api.secret", 
-        "input.data.format",
-        "connection.user", 
-        "connection.password",
-        "topics",
-        "database", 
-        "collection"
-    ]
-    
-    # Check for missing required fields
-    for field in required_fields:
-        if field not in config:
-            issues.append(f"Missing required field '{field}'")
-    
-    # Validate topics field (can be string or array)
-    topics = config.get("topics")
-    if topics is not None:
-        if not isinstance(topics, (str, list)):
-            issues.append("'topics' field must be a string or array")
-        elif isinstance(topics, list) and len(topics) == 0:
-            issues.append("'topics' array cannot be empty")
-    
-    # Check for unsupported parameters
-    unsupported_params = []
-    
-    # Check for timeseries parameters
-    for key in config.keys():
-        if key.startswith("timeseries."):
-            unsupported_params.append(f"'{key}' - this converter does not currently support timeseries")
-    
-    # Check for delete.on.null.values
-    if "delete.on.null.values" in config:
-        unsupported_params.append("'delete.on.null.values' - not supported in stream processors")
-    
-    if unsupported_params:
-        issues.extend(unsupported_params)
-    
-    is_valid = len(issues) == 0
-    return is_valid, issues
+    if result.is_valid:
+        return True, []
+    else:
+        return False, result.error_messages
 
 
 
@@ -151,7 +115,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     for json_file in json_files:
         connector_config = load_json_file(str(json_file))
         if connector_config:
-            is_valid, issues = validate_connector_config(connector_config, json_file.name)
+            is_valid, issues = validate_sink_config(connector_config, json_file.name)
             if is_valid:
                 first_connector_config = connector_config
                 break
@@ -194,7 +158,7 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
             continue
         
         # Validate connector config
-        is_valid, issues = validate_connector_config(connector_config, json_file.name)
+        is_valid, issues = validate_sink_config(connector_config, json_file.name)
         if not is_valid:
             skipped_configs[json_file.name] = issues
             print(f"✗ Skipping {json_file.name} due to validation issues")

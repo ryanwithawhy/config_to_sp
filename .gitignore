@@ -9,3 +9,4 @@ sources
 .claude
 config.json
 files/
+.env.integration

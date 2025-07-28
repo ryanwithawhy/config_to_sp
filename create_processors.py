@@ -109,8 +109,6 @@ def create_temp_folder_with_configs(configs: list, temp_folder_name: str) -> str
     
     for config_file in configs:
         config = load_json_file(str(config_file))
-        # Remove connector.class field before passing to existing processors
-        config.pop("connector.class", None)
         
         temp_file_path = temp_folder / config_file.name
         with open(temp_file_path, 'w') as f:
