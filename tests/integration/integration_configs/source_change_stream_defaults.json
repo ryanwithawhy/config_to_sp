@@ -1,0 +1,7 @@
+{
+    "connector.class": "MongoDbAtlasSource", 
+    "name": "test-change-stream-defaults",
+    "change.stream.full.document": "default",
+    "change.stream.full.document.before.change": "default",
+    "publish.full.document.only": "false"
+}

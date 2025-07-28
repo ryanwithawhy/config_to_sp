@@ -257,7 +257,10 @@ def create_stream_processor(
     topic_prefix: Optional[str] = None,
     topics: Optional[Union[str, List[str]]] = None,
     auto_offset_reset: Optional[str] = None,
-    enable_dlq: bool = False
+    enable_dlq: bool = False,
+    full_document: Optional[str] = None,
+    full_document_before_change: Optional[str] = None,
+    full_document_only: Optional[bool] = None
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -276,6 +279,9 @@ def create_stream_processor(
         topics: Topics for sink processors (required for sink)
         auto_offset_reset: Auto offset reset strategy for sink processors
         enable_dlq: Whether to enable DLQ for error handling
+        full_document: Change stream fullDocument setting ('updateLookup', 'whenAvailable', 'required')
+        full_document_before_change: Change stream fullDocumentBeforeChange setting ('off', 'whenAvailable', 'required')
+        full_document_only: Whether to return only fullDocument content (boolean)
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -296,14 +302,38 @@ def create_stream_processor(
         # Construct topic name
         topic_name = f"{topic_prefix}.{database}.{collection}"
         
+        # Create $source stage for MongoDB change stream
+        source_stage = {
+            "connectionName": mongodb_connection_name,
+            "db": database,
+            "coll": collection
+        }
+        
+        # Add config section if any change stream parameters are provided
+        source_config = {}
+        
+        # Map connector parameters to Stream Processing parameters
+        if full_document is not None and full_document != "default":
+            source_config["fullDocument"] = full_document
+        
+        if full_document_before_change is not None and full_document_before_change != "default":
+            # Map connector "default" to Stream Processing "off"
+            if full_document_before_change == "off":
+                source_config["fullDocumentBeforeChange"] = "off"
+            else:
+                source_config["fullDocumentBeforeChange"] = full_document_before_change
+        
+        if full_document_only is not None:
+            source_config["fullDocumentOnly"] = full_document_only
+        
+        # Add config to source stage if any parameters were set
+        if source_config:
+            source_stage["config"] = source_config
+        
         # Create source pipeline with $source (MongoDB) -> $emit (Kafka)
         pipeline = [
             {
-                "$source": {
-                    "connectionName": mongodb_connection_name,
-                    "db": database,
-                    "coll": collection
-                }
+                "$source": source_stage
             },
             {
                 "$emit": {

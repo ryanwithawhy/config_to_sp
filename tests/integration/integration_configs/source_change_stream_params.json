@@ -1,0 +1,7 @@
+{
+    "connector.class": "MongoDbAtlasSource",
+    "name": "test-change-stream-processor",
+    "change.stream.full.document": "whenAvailable",
+    "change.stream.full.document.before.change": "required",
+    "publish.full.document.only": "true"
+}

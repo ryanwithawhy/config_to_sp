@@ -155,6 +155,15 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         connection_user = connector_config["connection.user"]
         connection_password = connector_config["connection.password"]
         
+        # Extract change stream parameters (with defaults matching CSV config)
+        full_document = connector_config.get("change.stream.full.document")  # default is "default" in CSV
+        full_document_before_change = connector_config.get("change.stream.full.document.before.change")  # default is "default" in CSV  
+        publish_full_document_only = connector_config.get("publish.full.document.only")  # default is False in CSV
+        
+        # Convert string boolean values to actual booleans for publish.full.document.only
+        if isinstance(publish_full_document_only, str):
+            publish_full_document_only = publish_full_document_only.lower() in ('true', '1', 'yes', 'on')
+        
         # Construct topic name
         topic_name = f"{topic_prefix}.{database}.{collection}"
         
@@ -188,7 +197,10 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         "source",
                         name,
                         topic_prefix=topic_prefix,
-                        enable_dlq=enable_dlq
+                        enable_dlq=enable_dlq,
+                        full_document=full_document,
+                        full_document_before_change=full_document_before_change,
+                        full_document_only=publish_full_document_only
                     )
                     
                     if stream_processor_success:
