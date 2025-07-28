@@ -40,40 +40,126 @@ To use this project you simply create a single configuration scripe with a few M
 
 ### Quick Start
 
-1. **Configure your main settings** in `config.json` files (see tool-specific documentation)
-2. **Create connector configuration files** for each collection/topic you want to process.
+1. **Configure your main settings** in a main configuration file (see [Main Configuration](#main-configuration) below)
+2. **Create connector configuration files** for each collection/topic you want to process (see [Connector Configurations](#connector-configurations) below)
+3. **Run the appropriate tool**:
+   ```bash
+   # For MongoDB → Kafka streaming
+   python3 create_source_processors.py <main_config_file.json> <folder_with_source_configs/>
+   
+   # For Kafka → MongoDB streaming
+   python3 create_sink_processors.py <main_config_file.json> <folder_with_sink_configs/>
+   ```
 
-**For Sources**
-```
- {
-     "connector.class": "MongoDbAtlasSource",
-     "name": "<my-stream-processor-name>",
-     "kafka.auth.mode": "KAFKA_API_KEY",
-     "kafka.api.key": "<my-kafka-api-key>",
-     "kafka.api.secret": "<my-kafka-api-secret>",
-     "topic.prefix": "<topic-prefix>",
-     "connection.user": "<database-username>",
-     "connection.password": "<database-password>",
-     "database": "<database-name>",
-     "collection": "<database-collection-name>",
+## Main Configuration
+
+The main configuration file contains settings for your MongoDB Atlas and Confluent Cloud environments. This file is passed as the first argument to the processing scripts.
+
+### Required Fields
+
+```json
+{
+    "confluent-cluster-id": "lkc-12345",
+    "confluent-rest-endpoint": "https://pkc-abc123.us-west-2.aws.confluent.cloud:443",
+    "mongodb-stream-processor-instance-url": "mongodb://cluster0-shard-00-00.mongodb.net:27017",
+    "stream-processor-prefix": "myapp",
+    "kafka-connection-name": "kafka-connection",
+    "mongodb-connection-name": "mongodb-connection", 
+    "mongodb-cluster-name": "Cluster0",
+    "mongodb-group-id": "507f1f77bcf86cd799439011",
+    "mongodb-tenant-name": "MyTenant",
+    "mongodb-connection-role": "readWrite"
 }
 ```
 
-**For Sinks**
+### Field Descriptions
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `confluent-cluster-id` | Your Confluent Cloud Kafka cluster ID | `"lkc-12345"` |
+| `confluent-rest-endpoint` | Confluent Cloud REST API endpoint | `"https://pkc-abc123.us-west-2.aws.confluent.cloud:443"` |
+| `mongodb-stream-processor-instance-url` | MongoDB Atlas Stream Processing instance URL | `"mongodb://cluster0-shard-00-00.mongodb.net:27017"` |
+| `stream-processor-prefix` | Prefix for naming stream processors | `"myapp"` |
+| `kafka-connection-name` | Name for the shared Kafka connection | `"kafka-connection"` |
+| `mongodb-connection-name` | Name for the shared MongoDB connection | `"mongodb-connection"` |
+| `mongodb-cluster-name` | Name of your MongoDB Atlas cluster | `"Cluster0"` |
+| `mongodb-group-id` | MongoDB Atlas project/group ID | `"507f1f77bcf86cd799439011"` |
+| `mongodb-tenant-name` | MongoDB Atlas organization/tenant name | `"MyTenant"` |
+| `mongodb-connection-role` | Database role for MongoDB connection | `"readWrite"` |
+
+### How to Find These Values
+
+#### Confluent Cloud Values
+- **Cluster ID**: Found in Confluent Cloud console under Cluster Settings
+- **REST Endpoint**: Found in Cluster Settings → Endpoints section
+
+#### MongoDB Atlas Values  
+- **Stream Processor URL**: Found in Atlas Stream Processing section
+- **Cluster Name**: Your Atlas cluster name (e.g., "Cluster0")
+- **Group ID**: Found in Project Settings → General
+- **Tenant Name**: Your Atlas organization name
+- **Connection Role**: Database user role (typically "readWrite" or "readWriteAnyDatabase")
+
+### Example Main Config
+
+```json
+{
+    "confluent-cluster-id": "lkc-abc123", 
+    "confluent-rest-endpoint": "https://pkc-xyz789.us-east-1.aws.confluent.cloud:443",
+    "mongodb-stream-processor-instance-url": "mongodb://myapp-shard-00-00.abc123.mongodb.net:27017",
+    "stream-processor-prefix": "ecommerce",
+    "kafka-connection-name": "ecommerce-kafka-conn",
+    "mongodb-connection-name": "ecommerce-mongo-conn",
+    "mongodb-cluster-name": "EcommerceCluster", 
+    "mongodb-group-id": "60f1b2c3d4e5f6789a0b1c2d",
+    "mongodb-tenant-name": "AcmeCorpAtlas",
+    "mongodb-connection-role": "readWrite"
+}
 ```
+
+## Connector Configurations
+
+Create individual JSON configuration files for each source or sink connector you want to deploy. These follow the standard Confluent connector format but are validated for MongoDB Atlas Stream Processing compatibility.
+
+### Source Connector Configuration
+
+**For Sources (MongoDB → Kafka)**
+```json
+{
+    "connector.class": "MongoDbAtlasSource",
+    "name": "orders-source-processor",
+    "kafka.auth.mode": "KAFKA_API_KEY",
+    "kafka.api.key": "your-kafka-api-key",
+    "kafka.api.secret": "your-kafka-api-secret",
+    "topic.prefix": "ecommerce",
+    "connection.user": "dbuser",
+    "connection.password": "dbpassword",
+    "database": "orders",
+    "collection": "transactions"
+}
+```
+
+**Note**: The `collection` field is **optional** for source connectors. If omitted, the stream processor will watch all collections in the specified database.
+
+### Sink Connector Configuration
+
+**For Sinks (Kafka → MongoDB)**
+```json
 {
     "connector.class": "MongoDbAtlasSink",
-    "name": "confluent-mongodb-sink",
-    "kafka.auth.mode": "KAFKA_API_KEY",
-    "kafka.api.key": "<my-kafka-api-key",
-    "kafka.api.secret": "<my-kafka-api-secret>",
-    "connection.user": "<my-username>",
-    "connection.password": "<my-password>",
-    "topics": "<comma-separated-topics>",
-    "database": "<database-name>",
-    "collection": "<collection-name>",
+    "name": "orders-sink-processor",
+    "kafka.auth.mode": "KAFKA_API_KEY", 
+    "kafka.api.key": "your-kafka-api-key",
+    "kafka.api.secret": "your-kafka-api-secret",
+    "connection.user": "dbuser",
+    "connection.password": "dbpassword",
+    "topics": "ecommerce.orders.transactions",
+    "database": "orders",
+    "collection": "transactions"
 }
 ```
+
+**Note**: The `collection` field is **required** for sink connectors.
 
 ## Configuration Validation
 
@@ -96,7 +182,7 @@ The tools include automatic configuration validation to ensure your connector co
 ```python
 # Configuration is automatically validated
 {
-    "connector.class": "com.mongodb.kafka.connect.MongoSourceConnector",
+    "connector.class": "MongoSourceConnector",
     "name": "my-source-connector",
     "kafka.auth.mode": "KAFKA_API_KEY",  # ✅ Supported value
     "database": "mydb",                   # ✅ Required field
@@ -105,18 +191,10 @@ The tools include automatic configuration validation to ensure your connector co
 ```
 
 If validation fails, you'll get clear error messages like:
-- `Missing required fields: database, collection`
+- `Missing required fields: database, topic.prefix` (for sources)
+- `Missing required fields: database, collection, topics` (for sinks) 
 - `The following fields are not supported: timeseries.field`
 - `Only KAFKA_API_KEY is supported for kafka.auth.mode`
-
-3. **Run the appropriate tool**:
-   ```bash
-   # For MongoDB → Kafka streaming
-   python3 create_source_processors.py <main_config_file.json> <folder_with_source_configs/>
-   
-   # For Kafka → MongoDB streaming
-   python3 create_sink_processors.py <main_config_file.json> <folder_with_sink_configs/>
-   ```
 
 ## Authentication & Permissions
 
