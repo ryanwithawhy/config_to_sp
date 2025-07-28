@@ -260,7 +260,8 @@ def create_stream_processor(
     enable_dlq: bool = False,
     full_document: Optional[str] = None,
     full_document_before_change: Optional[str] = None,
-    full_document_only: Optional[bool] = None
+    full_document_only: Optional[bool] = None,
+    pipeline: Optional[Union[str, List[Dict[str, Any]]]] = None
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -282,6 +283,7 @@ def create_stream_processor(
         full_document: Change stream fullDocument setting ('updateLookup', 'whenAvailable', 'required')
         full_document_before_change: Change stream fullDocumentBeforeChange setting ('off', 'whenAvailable', 'required')
         full_document_only: Whether to return only fullDocument content (boolean)
+        pipeline: Aggregation pipeline to filter change stream output (string or list of dicts)
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -325,6 +327,21 @@ def create_stream_processor(
         
         if full_document_only is not None:
             source_config["fullDocumentOnly"] = full_document_only
+        
+        # Handle pipeline parameter - convert from string to array if needed
+        if pipeline is not None:
+            if isinstance(pipeline, str):
+                # Parse JSON string to get the actual pipeline array
+                try:
+                    parsed_pipeline = json.loads(pipeline) if pipeline.strip() else []
+                    if parsed_pipeline:  # Only add if not empty
+                        source_config["pipeline"] = parsed_pipeline
+                except json.JSONDecodeError as e:
+                    print(f"⚠ Warning: Invalid pipeline JSON format: {e}")
+                    print(f"  Pipeline value: {pipeline}")
+                    # Continue without adding pipeline to config
+            elif isinstance(pipeline, list) and pipeline:  # Only add if not empty list
+                source_config["pipeline"] = pipeline
         
         # Add config to source stage if any parameters were set
         if source_config:

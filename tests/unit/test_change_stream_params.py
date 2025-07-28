@@ -218,6 +218,133 @@ class TestChangeStreamParameters(unittest.TestCase):
         source_stage = pipeline[0]['$source']
         self.assertIn('config', source_stage)
         self.assertEqual(source_stage['config']['fullDocumentBeforeChange'], 'off')
+    
+    @patch('processors.common.subprocess.run')
+    def test_pipeline_string_parsed_to_array(self, mock_subprocess):
+        """Test that pipeline JSON string is parsed to array and added to config."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['pipeline'] = '[{"$match": {"ns.coll": {"$regex": "^(collection1|collection2)$"}}}]'
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify pipeline was parsed and added to config
+        source_stage = pipeline[0]['$source']
+        self.assertIn('config', source_stage)
+        expected_pipeline = [{"$match": {"ns.coll": {"$regex": "^(collection1|collection2)$"}}}]
+        self.assertEqual(source_stage['config']['pipeline'], expected_pipeline)
+    
+    @patch('processors.common.subprocess.run')
+    def test_pipeline_array_added_directly(self, mock_subprocess):
+        """Test that pipeline array is added directly to config."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        pipeline_array = [{"$match": {"operationType": "insert"}}]
+        args['pipeline'] = pipeline_array
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify pipeline array was added to config
+        source_stage = pipeline[0]['$source']
+        self.assertIn('config', source_stage)
+        self.assertEqual(source_stage['config']['pipeline'], pipeline_array)
+    
+    @patch('processors.common.subprocess.run')
+    def test_empty_pipeline_string_ignored(self, mock_subprocess):
+        """Test that empty pipeline string doesn't add config."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['pipeline'] = '[]'  # Empty array as string
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify no config was added since pipeline was empty
+        source_stage = pipeline[0]['$source']
+        self.assertNotIn('config', source_stage)
+    
+    @patch('processors.common.subprocess.run')
+    def test_empty_pipeline_array_ignored(self, mock_subprocess):
+        """Test that empty pipeline array doesn't add config."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['pipeline'] = []  # Empty array
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify no config was added since pipeline was empty
+        source_stage = pipeline[0]['$source']
+        self.assertNotIn('config', source_stage)
+    
+    @patch('processors.common.subprocess.run')
+    @patch('builtins.print')
+    def test_invalid_pipeline_json_handled_gracefully(self, mock_print, mock_subprocess):
+        """Test that invalid pipeline JSON is handled gracefully with warning."""
+        mock_subprocess.return_value.returncode = 0
+        mock_subprocess.return_value.stderr = ""
+        
+        args = self.base_args.copy()
+        args['pipeline'] = '{"invalid": json}'  # Invalid JSON
+        
+        result = create_stream_processor(**args)
+        
+        # Extract and parse the pipeline
+        call_args = mock_subprocess.call_args[0][0]
+        js_command = call_args[-1]
+        pipeline_start = js_command.find('[')
+        pipeline_end = js_command.rfind(']') + 1
+        pipeline_json = js_command[pipeline_start:pipeline_end]
+        pipeline = json.loads(pipeline_json)
+        
+        # Verify no config was added due to invalid JSON
+        source_stage = pipeline[0]['$source']
+        self.assertNotIn('config', source_stage)
+        
+        # Verify warning was printed (check for presence of warning, not exact message)
+        warning_calls = [call for call in mock_print.call_args_list if "⚠ Warning: Invalid pipeline JSON format:" in str(call)]
+        value_calls = [call for call in mock_print.call_args_list if "Pipeline value: {\"invalid\": json}" in str(call)]
+        
+        self.assertTrue(len(warning_calls) > 0, "Expected warning message was not printed")
+        self.assertTrue(len(value_calls) > 0, "Expected pipeline value message was not printed")
 
 
 class TestParameterExtraction(unittest.TestCase):
