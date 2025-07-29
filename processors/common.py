@@ -264,7 +264,8 @@ def create_stream_processor(
     pipeline: Optional[Union[str, List[Dict[str, Any]]]] = None,
     topic_separator: str = ".",
     topic_suffix: Optional[str] = None,
-    compression_type: Optional[str] = None
+    compression_type: Optional[str] = None,
+    output_json_format: Optional[str] = None
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -290,6 +291,7 @@ def create_stream_processor(
         topic_separator: Separator to use in topic name construction (default: ".")
         topic_suffix: Optional suffix to append to topic name
         compression_type: Compression type for Kafka producer (none, gzip, snappy, lz4, zstd)
+        output_json_format: JSON output format for Kafka messages (canonicalJson, relaxedJson)
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -372,11 +374,14 @@ def create_stream_processor(
             "topic": topic_name
         }
         
-        # Add config section if compression_type is provided
+        # Add config section if compression_type or output_json_format is provided
         emit_config = {}
         
         if compression_type is not None:
             emit_config["compression_type"] = compression_type
+        
+        if output_json_format is not None:
+            emit_config["outputFormat"] = output_json_format
         
         # Add config to emit stage if any parameters were set
         if emit_config:

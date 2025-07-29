@@ -168,6 +168,17 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         # Extract producer configuration parameters
         compression_type = connector_config.get("producer.override.compression.type")  # default is "none" in CSV
         
+        # Extract output JSON format parameter
+        output_json_format = connector_config.get("output.json.format")  # default is "DefaultJson" in CSV
+        
+        # Map connector format to Stream Processing format
+        format_mapping = {
+            "ExtendedJson": "canonicalJson",
+            "DefaultJson": "canonicalJson",  # Conservative choice to preserve type info
+            "SimplifiedJson": "relaxedJson"
+        }
+        mapped_output_format = format_mapping.get(output_json_format) if output_json_format else None
+        
         # Convert string boolean values to actual booleans for publish.full.document.only
         if isinstance(publish_full_document_only, str):
             publish_full_document_only = publish_full_document_only.lower() in ('true', '1', 'yes', 'on')
@@ -222,7 +233,8 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         pipeline=pipeline_param,
                         topic_separator=topic_separator,
                         topic_suffix=topic_suffix,
-                        compression_type=compression_type
+                        compression_type=compression_type,
+                        output_json_format=mapped_output_format
                     )
                     
                     if stream_processor_success:

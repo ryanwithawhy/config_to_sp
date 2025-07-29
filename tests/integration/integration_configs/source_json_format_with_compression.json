@@ -1,0 +1,6 @@
+{
+    "connector.class": "MongoDbAtlasSource",
+    "name": "test-json-format-compression-processor",
+    "output.json.format": "ExtendedJson",
+    "producer.override.compression.type": "gzip"
+}
