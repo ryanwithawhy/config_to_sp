@@ -121,7 +121,7 @@ These fields are common to both source and sink connectors:
 | `database` | MongoDB Atlas database name. If not set, all databases in the cluster are watched. | Yes | `N/A` | `orders` |
 | `kafka.api.key` | Kafka API Key. Required to connect to your Kafka cluster. | Yes | `N/A` | `your-api-key` |
 | `kafka.api.secret` | Secret associated with Kafka API key. | Yes | `N/A` | `your-secret` |
-| `name` | Sets a name for your stream processor. | Yes | `N/A` | `my-processor` |
+| `name` | Sets a name for your stream processor. | Yes | `N/A` | `A string at most 64 characters long` |
 | `collection` | Single MongoDB Atlas collection to watch. If not set, all collections in the specified database are watched. | No | `N/A` | `transactions` |
 | `errors.tolerance` | Use this property if you would like to configure the connector's error handling behavior. If you set this property to 'all', the connector will not fail on errant records, but will instead store them and their error messages in your Atlas cluster in a collection named dlq.<your-stream-processor-name>. If you set this property to 'ignore', the connector will discard errant records and keep processing new ones. | No | `all` | `all` |
 
