@@ -180,6 +180,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         if auto_offset_reset and auto_offset_reset not in ["earliest", "latest"]:
             print(f"✗ Error: auto offset reset must be 'earliest' or 'latest', got '{auto_offset_reset}' in {json_file.name}")
             continue
+            
+        # Extract optional max poll interval
+        max_poll_interval_ms = connector_config.get("max.poll.interval.ms")
         
         
         # Create stream processor if both connections exist
@@ -196,7 +199,8 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                 name,
                 topics=topics,
                 auto_offset_reset=auto_offset_reset,
-                enable_dlq=enable_dlq
+                enable_dlq=enable_dlq,
+                max_poll_interval_ms=max_poll_interval_ms
             )
             
             if stream_processor_success:

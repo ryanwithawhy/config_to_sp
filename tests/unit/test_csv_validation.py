@@ -138,7 +138,7 @@ class TestCSVValidationRules(unittest.TestCase):
             "bulk.write.ordered": "true",      # IGNORE in managed_sink_configs.csv
             "rate.limiting.timeout": "5000",   # IGNORE in managed_sink_configs.csv
             "max.num.retries": "3",            # IGNORE in managed_sink_configs.csv
-            "max.poll.interval.ms": "300000",  # IGNORE in managed_sink_configs.csv
+            "max.poll.interval.ms": "300000",  # ALLOW in managed_sink_configs.csv
             "max.poll.records": "500"          # IGNORE in managed_sink_configs.csv
         }
         
@@ -922,6 +922,37 @@ class TestCSVValidationRules(unittest.TestCase):
         # Should pass with unrestricted ALLOW fields
         self.assertTrue(result.is_valid,
                        f"Sink config with unrestricted ALLOW fields should pass. Errors: {result.error_messages}")
+    
+    def test_max_poll_interval_ms_validation(self):
+        """Test that max.poll.interval.ms ALLOW field accepts valid values."""
+        # Test various valid values for max.poll.interval.ms
+        valid_values = ["300000", "600000", "60000", "1800000"]
+        
+        for value in valid_values:
+            sink_config = {
+                "connector.class": "MongoDbAtlasSink",
+                "name": "test-sink",
+                "kafka.auth.mode": "KAFKA_API_KEY",
+                "kafka.api.key": "test-key",
+                "kafka.api.secret": "test-secret",
+                "connection.user": "test-user",
+                "connection.password": "test-password",
+                "topics": "test-topic",
+                "database": "test-db",
+                "collection": "test-collection",
+                "max.poll.interval.ms": value
+            }
+            
+            result = validate_connector_config(sink_config)
+            
+            if VERBOSE:
+                print(f"\n--- MAX POLL INTERVAL MS TEST ({value}) ---")
+                print(f"Validation result: {result.is_valid}")
+                print(f"Error messages: {result.error_messages}")
+            
+            # Should pass validation with valid max.poll.interval.ms values
+            self.assertTrue(result.is_valid,
+                           f"Sink config with max.poll.interval.ms={value} should pass validation. Errors: {result.error_messages}")
 
 
 if __name__ == '__main__':

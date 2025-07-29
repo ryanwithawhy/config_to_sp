@@ -265,7 +265,8 @@ def create_stream_processor(
     topic_separator: str = ".",
     topic_suffix: Optional[str] = None,
     compression_type: Optional[str] = None,
-    output_json_format: Optional[str] = None
+    output_json_format: Optional[str] = None,
+    max_poll_interval_ms: Optional[str] = None
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -292,6 +293,7 @@ def create_stream_processor(
         topic_suffix: Optional suffix to append to topic name
         compression_type: Compression type for Kafka producer (none, gzip, snappy, lz4, zstd)
         output_json_format: JSON output format for Kafka messages (canonicalJson, relaxedJson)
+        max_poll_interval_ms: Maximum delay between subsequent consume requests to Kafka (for sink processors)
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -408,11 +410,18 @@ def create_stream_processor(
             "topic": topics
         }
         
-        # Add config with auto_offset_reset if provided
+        # Build config section if any parameters are provided
+        source_config = {}
+        
         if auto_offset_reset:
-            source_stage["config"] = {
-                "auto_offset_reset": auto_offset_reset
-            }
+            source_config["auto_offset_reset"] = auto_offset_reset
+            
+        if max_poll_interval_ms:
+            source_config["maxAwaitTimeMS"] = int(max_poll_interval_ms)
+        
+        # Add config to source stage if any parameters were set
+        if source_config:
+            source_stage["config"] = source_config
         
         # Create sink pipeline with $source (Kafka) -> $merge (MongoDB)
         pipeline = [
