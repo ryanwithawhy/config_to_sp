@@ -4,7 +4,7 @@ This project provides automated setup tools for creating end-to-end streaming pi
 
 ## Overview
 
-To use this project you simply create a single configuration scripe with a few MongoDB Atlas-specific fields, and then run `python create_processors.py {main_config_file} {stream_processor_config_location/}`.  It will then will automatically create stream processors that you can start running to stream data from MongoDB Atlas clusters to Kafka topics or the reverse.  
+To use this project you create a main configuration file with a few MongoDB Atlas-specific fields, and then run `python create_processors.py {main_config_file} {stream_processor_config_location/}`.  It will then will automatically create stream processors that you can start running to stream data from MongoDB Atlas clusters to Kafka topics or the reverse.  
 
 ## Architecture
 
@@ -30,7 +30,7 @@ To use this project you simply create a single configuration scripe with a few M
 1. **Clone the project**:
    ```bash
    git clone <repository-url>
-   cd confluent_config_to_asp
+   cd managed_config_to_atlas_stream_processing
    ```
 
 2. **Install dependencies**:
@@ -40,15 +40,16 @@ To use this project you simply create a single configuration scripe with a few M
 
 ### Quick Start
 
+0. **Create an Atlas Stream Processing Instance** if you don't already have one.  You'll need the stream processing instance url for the next step.
 1. **Configure your main settings** in a main configuration file (see [Main Configuration](#main-configuration) below)
-2. **Create connector configuration files** for each collection/topic you want to process (see [Connector Configurations](#connector-configurations) below)
-3. **Run the appropriate tool**:
+2. **Create configuration files for each processor** you want to create.  You can have one processor for one or more collections or topics (see [Connector Configurations](#connector-configurations) below)
+3. **Run the create processor command**:
    ```bash
-   # For MongoDB → Kafka streaming
-   python3 create_source_processors.py <main_config_file.json> <folder_with_source_configs/>
-   
-   # For Kafka → MongoDB streaming
-   python3 create_sink_processors.py <main_config_file.json> <folder_with_sink_configs/>
+   # to create many processors
+   python3 create_processors.py <main_config_file.json> <folder_with_processor_configs/>
+
+   # to create a single process
+   python3 create_processors.py <main_config_file.json> <process_config.json>
    ```
 
 ## Main Configuration
@@ -56,21 +57,6 @@ To use this project you simply create a single configuration scripe with a few M
 The main configuration file contains settings for your MongoDB Atlas and Confluent Cloud environments. This file is passed as the first argument to the processing scripts.
 
 ### Required Fields
-
-```json
-{
-    "confluent-cluster-id": "lkc-12345",
-    "confluent-rest-endpoint": "https://pkc-abc123.us-west-2.aws.confluent.cloud:443",
-    "mongodb-stream-processor-instance-url": "mongodb://cluster0-shard-00-00.mongodb.net:27017",
-    "stream-processor-prefix": "myapp",
-    "kafka-connection-name": "kafka-connection",
-    "mongodb-connection-name": "mongodb-connection", 
-    "mongodb-cluster-name": "Cluster0",
-    "mongodb-group-id": "507f1f77bcf86cd799439011",
-    "mongodb-tenant-name": "MyTenant",
-    "mongodb-connection-role": "readWrite"
-}
-```
 
 ### Field Descriptions
 
@@ -104,16 +90,16 @@ The main configuration file contains settings for your MongoDB Atlas and Conflue
 
 ```json
 {
-    "confluent-cluster-id": "lkc-abc123", 
-    "confluent-rest-endpoint": "https://pkc-xyz789.us-east-1.aws.confluent.cloud:443",
-    "mongodb-stream-processor-instance-url": "mongodb://myapp-shard-00-00.abc123.mongodb.net:27017",
-    "stream-processor-prefix": "ecommerce",
-    "kafka-connection-name": "ecommerce-kafka-conn",
-    "mongodb-connection-name": "ecommerce-mongo-conn",
-    "mongodb-cluster-name": "EcommerceCluster", 
-    "mongodb-group-id": "60f1b2c3d4e5f6789a0b1c2d",
-    "mongodb-tenant-name": "AcmeCorpAtlas",
-    "mongodb-connection-role": "readWrite"
+    "confluent-cluster-id": "lkc-12345",
+    "confluent-rest-endpoint": "https://pkc-abc123.us-west-2.aws.confluent.cloud:443",
+    "mongodb-stream-processor-instance-url": "mongodb://cluster0-shard-00-00.mongodb.net:27017",
+    "stream-processor-prefix": "myapp",
+    "kafka-connection-name": "kafka-connection",
+    "mongodb-connection-name": "mongodb-connection", 
+    "mongodb-cluster-name": "Cluster0",
+    "mongodb-group-id": "507f1f77bcf86cd799439011",
+    "mongodb-tenant-name": "MyTenant",
+    "mongodb-connection-role": "readAndWriteAnyDatabase"
 }
 ```
 
@@ -153,7 +139,7 @@ Create individual JSON configuration files for each source or sink connector you
     "kafka.api.secret": "your-kafka-api-secret",
     "connection.user": "dbuser",
     "connection.password": "dbpassword",
-    "topics": "ecommerce.orders.transactions",
+    "topics": "your-topic",
     "database": "orders",
     "collection": "transactions"
 }

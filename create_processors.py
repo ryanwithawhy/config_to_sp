@@ -62,39 +62,65 @@ def validate_unified_config(config: Dict[str, Any], filename: str) -> bool:
     return True
 
 
-def separate_configs_by_type(configs_folder: str) -> tuple[list, list]:
-    """Separate configuration files by connector type."""
-    folder_path = Path(configs_folder)
+def is_single_file(path: str) -> bool:
+    """Check if the given path is a single file rather than a directory."""
+    path_obj = Path(path)
+    return path_obj.exists() and path_obj.is_file()
+
+
+def separate_configs_by_type(configs_path: str) -> tuple[list, list]:
+    """Separate configuration files by connector type from either a single file or folder."""
+    path_obj = Path(configs_path)
     
-    if not folder_path.exists():
-        print(f"Error: Folder not found: {configs_folder}")
-        return [], []
-    
-    if not folder_path.is_dir():
-        print(f"Error: Path is not a directory: {configs_folder}")
-        return [], []
-    
-    json_files = list(folder_path.glob("*.json"))
-    
-    if not json_files:
-        print(f"No .json files found in {configs_folder}")
+    if not path_obj.exists():
+        print(f"Error: Path not found: {configs_path}")
         return [], []
     
     source_configs = []
     sink_configs = []
     
-    for json_file in json_files:
-        config = load_json_file(str(json_file))
+    # Handle single file
+    if path_obj.is_file():
+        if not configs_path.endswith('.json'):
+            print(f"Error: File must be a JSON file: {configs_path}")
+            return [], []
+        
+        config = load_json_file(configs_path)
         if not config:
-            continue
+            return [], []
             
-        if not validate_unified_config(config, json_file.name):
-            continue
+        if not validate_unified_config(config, path_obj.name):
+            return [], []
         
         if config["connector.class"] == "MongoDbAtlasSource":
-            source_configs.append(json_file)
+            source_configs.append(path_obj)
         elif config["connector.class"] == "MongoDbAtlasSink":
-            sink_configs.append(json_file)
+            sink_configs.append(path_obj)
+    
+    # Handle folder
+    elif path_obj.is_dir():
+        json_files = list(path_obj.glob("*.json"))
+        
+        if not json_files:
+            print(f"No .json files found in {configs_path}")
+            return [], []
+        
+        for json_file in json_files:
+            config = load_json_file(str(json_file))
+            if not config:
+                continue
+                
+            if not validate_unified_config(config, json_file.name):
+                continue
+            
+            if config["connector.class"] == "MongoDbAtlasSource":
+                source_configs.append(json_file)
+            elif config["connector.class"] == "MongoDbAtlasSink":
+                sink_configs.append(json_file)
+    
+    else:
+        print(f"Error: Path must be a file or directory: {configs_path}")
+        return [], []
     
     return source_configs, sink_configs
 
@@ -132,8 +158,8 @@ def main():
     )
     
     parser.add_argument(
-        "configs_folder",
-        help="Path to the folder containing connector configuration files"
+        "configs_path",
+        help="Path to a single connector configuration file or a folder containing multiple configuration files"
     )
     
     args = parser.parse_args()
@@ -150,7 +176,7 @@ def main():
     print(f"✓ Main config loaded successfully")
     
     # Separate configs by type
-    source_configs, sink_configs = separate_configs_by_type(args.configs_folder)
+    source_configs, sink_configs = separate_configs_by_type(args.configs_path)
     
     if not source_configs and not sink_configs:
         print("No valid connector configurations found.")
