@@ -13,7 +13,6 @@ Main config format:
     "confluent-cluster-id": "your-cluster-id",
     "confluent-rest-endpoint": "https://your-rest-endpoint.com",
     "mongodb-stream-processor-instance-url": "mongodb://your-stream-processor-instance-url/",
-    "stream-processor-prefix": "managed-sink-test",
     "kafka-connection-name": "kafka-connection-name",
     "mongodb-connection-name": "mongodb-sink-connection",
     "mongodb-group-id": "your-24-char-mongodb-group-id",
@@ -275,7 +274,6 @@ def main():
     print(f"  Confluent Cluster ID: {main_config['confluent-cluster-id']}")
     print(f"  Confluent REST Endpoint: {main_config['confluent-rest-endpoint']}")
     print(f"  Stream Processor URL: {main_config['mongodb-stream-processor-instance-url']}")
-    print(f"  Stream Processor Prefix: {main_config['stream-processor-prefix']}")
     print(f"  Kafka Connection Name: {main_config['kafka-connection-name']}")
     print(f"  MongoDB Connection Name: {main_config['mongodb-connection-name']}")
     

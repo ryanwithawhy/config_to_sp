@@ -52,15 +52,10 @@ class ReadmeDocGenerator:
                     if not row.get('name', '').strip():
                         continue
                         
-                    # Get description (prefer display_definition over definition)
+                    # Get description - ONLY include fields with display_definition
                     description = row.get('display_definition', '').strip()
                     if not description:
-                        description = row.get('definition', '').strip()
-                    if not description:
-                        description = row.get('original_definition', '').strip()
-                    
-                    # Skip if no description available
-                    if not description:
+                        # Skip fields without display_definition
                         continue
                     
                     what_to_do = row.get('what_do_do', '').strip()
@@ -97,11 +92,14 @@ class ReadmeDocGenerator:
         if what_to_do == 'REQUIRE':
             return True
             
-        # Include ALLOW fields except ALLOW default
-        if what_to_do.startswith('ALLOW') and what_to_do != 'ALLOW DEFAULT':
-            return True
+        # Include all ALLOW fields EXCEPT "ALLOW DEFAULT"
+        if what_to_do.startswith('ALLOW'):
+            if what_to_do == 'ALLOW DEFAULT':
+                return False  # Exclude ALLOW DEFAULT
+            else:
+                return True   # Include all other ALLOW variants
             
-        # Exclude everything else (IGNORE, DISALLOW, ALLOW DEFAULT)
+        # Exclude everything else (IGNORE, DISALLOW)
         return False
     
     def generate_field_table(self, fields: List[ConfigField]) -> str:
@@ -114,21 +112,131 @@ class ReadmeDocGenerator:
         fields.sort(key=lambda f: (importance_order.get(f.importance.lower(), 3), f.name))
         
         table = "| Field | Description | Required | Default | Example |\n"
-        table += "|-------|-------------|----------|---------|---------|\n"
+        table += "|-------|-------------|----------|---------|---------|" + "\n"
         
         for field in fields:
-            # Clean up description - remove newlines and extra spaces
-            description = re.sub(r'\s+', ' ', field.description).strip()
+            # Format description with proper line breaks and word wrapping
+            description = self._format_description(field.description)
             
             # Create example from valid_values or use generic example
             example = self._create_example(field)
             
             required_text = "Yes" if field.required else "No"
             
-            table += f"| `{field.name}` | {description} | {required_text} | `{field.default}` | `{example}` |\n"
+            # Format field name to allow wrapping
+            field_name = f"`{field.name}`"
+            if len(field.name) > 25:
+                # Break long field names at dots for better readability
+                parts = field.name.split('.')
+                if len(parts) > 2:
+                    # Group parts to avoid too many breaks
+                    formatted_parts = []
+                    current_part = parts[0]
+                    for part in parts[1:]:
+                        if len(current_part + '.' + part) > 25:
+                            formatted_parts.append(current_part)
+                            current_part = part
+                        else:
+                            current_part += '.' + part
+                    formatted_parts.append(current_part)
+                    field_name = f"`{'`<br>`'.join(formatted_parts)}`"
+            
+            # Escape pipe characters in all table content
+            escaped_default = field.default.replace('|', '\\|') if field.default else 'N/A'
+            escaped_example = example.replace('|', '\\|') if example else 'value'
+            
+            table += f"| {field_name} | {description} | {required_text} | `{escaped_default}` | `{escaped_example}` |\n"
         
         table += "\n"
         return table
+    
+    def _format_description(self, description: str) -> str:
+        """Format description text for better table display using markdown."""
+        if not description:
+            return ""
+            
+        # Replace multiple whitespace with single spaces
+        description = re.sub(r'\s+', ' ', description).strip()
+        
+        # Escape special characters to prevent formatting issues
+        description = description.replace('|', '\\|')  # Escape pipes for tables
+        description = description.replace('$', '\\$')  # Escape dollar signs for KaTeX
+        
+        # Convert bullet points to proper markdown format
+        description = description.replace(' - ', '<br>- ')
+        
+        # Add line breaks for very long descriptions (over 150 chars)
+        if len(description) > 150:
+            # For descriptions with JSON examples, be more careful about splitting
+            if '[{' in description and '}]' in description:
+                # Contains JSON - split more conservatively
+                # Look for major sentence breaks with capital letters
+                parts = []
+                current = ""
+                
+                # Split on sentences that end with period followed by space and capital letter
+                # but not inside JSON blocks
+                i = 0
+                in_json = False
+                brace_count = 0
+                
+                while i < len(description):
+                    char = description[i]
+                    current += char
+                    
+                    # Track JSON blocks
+                    if char == '{':
+                        brace_count += 1
+                        in_json = True
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            in_json = False
+                    
+                    # Look for sentence breaks outside JSON
+                    if (char == '.' and not in_json and 
+                        i + 2 < len(description) and 
+                        description[i + 1] == ' ' and 
+                        description[i + 2].isupper() and
+                        len(current) > 60):
+                        parts.append(current.strip())
+                        current = ""
+                    
+                    i += 1
+                
+                if current:
+                    parts.append(current.strip())
+                
+                if len(parts) > 1:
+                    description = '<br><br>'.join(parts)
+            else:
+                # No JSON - use simple sentence splitting
+                sentences = description.split('. ')
+                if len(sentences) > 1:
+                    lines = []
+                    current_line = ""
+                    
+                    for i, sentence in enumerate(sentences):
+                        if len(current_line + sentence) > 120 and current_line:
+                            if not current_line.endswith('.'):
+                                current_line += '.'
+                            lines.append(current_line.strip())
+                            current_line = sentence
+                        else:
+                            if current_line:
+                                current_line += ' ' + sentence
+                            else:
+                                current_line = sentence
+                            if i < len(sentences) - 1:
+                                current_line += '.'
+                    
+                    if current_line:
+                        lines.append(current_line.strip())
+                    
+                    if len(lines) > 1:
+                        description = '<br><br>'.join(lines)
+        
+        return description
     
     def _create_example(self, field: ConfigField) -> str:
         """Create an example value for a field."""

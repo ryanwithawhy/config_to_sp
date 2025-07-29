@@ -93,7 +93,6 @@ class TestE2EIntegration(unittest.TestCase):
             "mongodb-stream-processor-instance-url": os.getenv('test_stream_processor_url'),
             "mongodb-tenant-name": os.getenv('test_tenant_name'),
             "mongodb-group-id": os.getenv('test_group_id'),
-            "stream-processor-prefix": "e2e-integration-test",
             "kafka-connection-name": os.getenv('test_kafka_connection_name'),
             "mongodb-cluster-name": os.getenv('test_cluster_name'),
             "mongodb-connection-name": os.getenv('test_mongodb_connection_name'),

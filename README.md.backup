@@ -30,7 +30,7 @@ To use this project you create a main configuration file with a few MongoDB Atla
 1. **Clone the project**:
    ```bash
    git clone <repository-url>
-   cd managed_config_to_atlas_stream_processing
+   cd kafka_connector_to_atlas_stream_processing
    ```
 
 2. **Install dependencies**:
@@ -65,7 +65,6 @@ The main configuration file contains settings for your MongoDB Atlas and Conflue
 | `confluent-cluster-id` | Your Confluent Cloud Kafka cluster ID | `"lkc-12345"` |
 | `confluent-rest-endpoint` | Confluent Cloud REST API endpoint | `"https://pkc-abc123.us-west-2.aws.confluent.cloud:443"` |
 | `mongodb-stream-processor-instance-url` | MongoDB Atlas Stream Processing instance URL | `"mongodb://cluster0-shard-00-00.mongodb.net:27017"` |
-| `stream-processor-prefix` | Prefix for naming stream processors | `"myapp"` |
 | `kafka-connection-name` | Name for the shared Kafka connection | `"kafka-connection"` |
 | `mongodb-connection-name` | Name for the shared MongoDB connection | `"mongodb-connection"` |
 | `mongodb-cluster-name` | Name of your MongoDB Atlas cluster | `"Cluster0"` |
@@ -93,7 +92,6 @@ The main configuration file contains settings for your MongoDB Atlas and Conflue
     "confluent-cluster-id": "lkc-12345",
     "confluent-rest-endpoint": "https://pkc-abc123.us-west-2.aws.confluent.cloud:443",
     "mongodb-stream-processor-instance-url": "mongodb://cluster0-shard-00-00.mongodb.net:27017",
-    "stream-processor-prefix": "myapp",
     "kafka-connection-name": "kafka-connection",
     "mongodb-connection-name": "mongodb-connection", 
     "mongodb-cluster-name": "Cluster0",
@@ -117,13 +115,13 @@ These fields are common to both source and sink connectors:
 |-------|-------------|----------|---------|---------|
 | `connection.password` | MongoDB Atlas connection password. | Yes | `N/A` | `your-secret` |
 | `connection.user` | MongoDB Atlas connection user. | Yes | `N/A` | `dbuser` |
-| `connector.class` | Identifies the connector plugin name. MongoDbAtlasSource streams data from MongoDB to Kafka topics. MongoDbAtlasSink streams data from Kafka topics to MongoDB. | Yes | `N/A` | `MongoDbAtlasSource` |
+| `connector.class` | Identifies the connector plugin name. MongoDbAtlasSource streams data from MongoDB to Kafka topics.<br><br>MongoDbAtlasSink streams data from Kafka topics to MongoDB. | Yes | `N/A` | `MongoDbAtlasSource` |
 | `database` | MongoDB Atlas database name. If not set, all databases in the cluster are watched. | Yes | `N/A` | `orders` |
 | `kafka.api.key` | Kafka API Key. Required to connect to your Kafka cluster. | Yes | `N/A` | `your-api-key` |
 | `kafka.api.secret` | Secret associated with Kafka API key. | Yes | `N/A` | `your-secret` |
-| `name` | Sets a name for your stream processor. | Yes | `N/A` | `A string at most 64 characters long` |
+| `name` | Sets a name for your stream processor. | Yes | `N/A` | `my-processor` |
 | `collection` | Single MongoDB Atlas collection to watch. If not set, all collections in the specified database are watched. | No | `N/A` | `transactions` |
-| `errors.tolerance` | Use this property if you would like to configure the connector's error handling behavior. If you set this property to 'all', the connector will not fail on errant records, but will instead store them and their error messages in your Atlas cluster in a collection named dlq.<your-stream-processor-name>. If you set this property to 'ignore', the connector will discard errant records and keep processing new ones. | No | `all` | `all` |
+| `errors.tolerance` | Use this property if you would like to configure the connector's error handling behavior.<br><br>If you set this property to 'all', the connector will not fail on errant records, but will instead store them and their error messages in your Atlas cluster in a collection named dlq.<your-stream-processor-name>.<br><br>If you set this property to 'ignore', the connector will discard errant records and keep processing new ones. | No | `all` | `all` |
 
 ### Source-Specific Configurations
 
@@ -131,16 +129,14 @@ These fields are specific to source connectors (MongoDB → Kafka):
 
 | Field | Description | Required | Default | Example |
 |-------|-------------|----------|---------|---------|
-| `change.stream.full.document` | Setting that controls whether a change stream source should return a full document, or only the changes when an update occurs. Must be one of the following: - updateLookup : Returns only changes on update. - required : Must return a full document. If a full document is unavailable, returns nothing. - whenAvailable : Returns a full document whenever one is available, otherwise returns changes. If you do not specify a value for fullDocument, it defaults to updateLookup. To use this field with a collection change stream, you must enable change stream Pre- and Post-Images on that collection. | No | `updateLookup` | `updateLookup` |
-| `change.stream.full.document.before.change` | Specifies whether a change stream source should include the full document in its original "before changes" state in the output. Must be one of the following: - off : Omits the fullDocumentBeforeChange field. - required : Must return a full document in its before changes state. If a full document in its before changes state is unavailable, the stream processor fails. - whenAvailable : Returns a full document in its before changes state whenever one is available, otherwise omits the fullDocumentBeforeChange field. If you do not specify a value for fullDocumentBeforeChange, it defaults to off. To use this field with a collection change stream, you must enable change stream Pre- and Post-Images on that collection. | No | `off` | `off` |
-| `output.json.format` | The output format of json strings can be configured to be either: DefaultJson: The legacy strict json formatter. ExtendedJson: The fully type safe extended json formatter. SimplifiedJson: Simplified Json, with ObjectId, Decimals, Dates and Binary values represented as strings. Defaults to DefaultJson. Note. DefaultJson is mapped to Atlas Stream Processing's canonicalJson format as a conservative choice to preserve type information, though there may be minor differences in how certain data types (like dates) are represented between the two formats. | No | `DefaultJson` | `DefaultJson` |
-| `output.key.format` | Sets the output Kafka record key format. Valid entries are AVRO, JSON_SR, PROTOBUF, STRING or JSON. Note that you need to have Confluent Cloud Schema Registry configured if using a schema-based message format like AVRO, JSON_SR, and PROTOBUF | No | `STRING` | `AVRO` |
-| `publish.full.document.only` | Setting that controls whether a change stream source returns the entire change event document including all metadata, or only the contents of fullDocument. If set to true, the source returns only the contents of fullDocument. To use this field with a collection change stream, you must enable change stream Pre- and Post-Images on that collection. | No | `FALSE` | `FALSE` |
-| `startup.mode` | Specifies how the connector should start up when there is no source offset available. If set to 'latest', the connector ignores all existing source data. If set to 'timestamp', the connector actuates startup.mode.timestamp.* properties. If no properties are configured, timestamp is equivalent to latest. If startup.mode=copy_existing, the connector copies all existing source data to Change Stream events. | No | `N/A` | `value` |
+| `change.stream.full`<br>`document` | Setting that controls whether a change stream source should return a full document, or only the changes when an update occurs.<br><br>Must be one of the following:<br>- updateLookup : Returns only changes on update.<br>- required : Must return a full document.<br><br>If a full document is unavailable, returns nothing.<br>- whenAvailable : Returns a full document whenever one is available, otherwise returns changes.<br><br>If you do not specify a value for fullDocument, it defaults to updateLookup.<br><br>To use this field with a collection change stream, you must enable change stream Pre- and Post-Images on that collection. | No | `updateLookup` | `updateLookup` |
+| `change.stream.full`<br>`document.before.change` | Specifies whether a change stream source should include the full document in its original "before changes" state in the output.<br><br>Must be one of the following:<br>- off : Omits the fullDocumentBeforeChange field.<br>- required : Must return a full document in its before changes state.<br><br>If a full document in its before changes state is unavailable, the stream processor fails.<br>- whenAvailable : Returns a full document in its before changes state whenever one is available, otherwise omits the fullDocumentBeforeChange field.<br><br>If you do not specify a value for fullDocumentBeforeChange, it defaults to off.<br><br>To use this field with a collection change stream, you must enable change stream Pre- and Post-Images on that collection. | No | `off` | `off` |
+| `output.json.format` | The output format of json strings can be configured to be either: DefaultJson: The legacy strict json formatter.<br><br>ExtendedJson: The fully type safe extended json formatter.<br><br>SimplifiedJson: Simplified Json, with ObjectId, Decimals, Dates and Binary values represented as strings.<br><br>Defaults to DefaultJson Note.<br><br>DefaultJson is mapped to Atlas Stream Processing's canonicalJson format as a conservative choice to preserve type information, though there may be minor differences in how certain data types (like dates) are represented between the two formats. | No | `DefaultJson` | `DefaultJson` |
+| `publish.full.document`<br>`only` | Setting that controls whether a change stream source returns the entire change event document including all metadata, or only the contents of fullDocument.<br><br>If set to true, the source returns only the contents of fullDocument.<br><br>To use this field with a collection change stream, you must enable change stream Pre- and Post-Images on that collection. | No | `FALSE` | `FALSE` |
 | `topic.prefix` | Prefix to prepend to table names to generate the name of the Apache Kafka topic to publish data to. | Yes | `N/A` | `ecommerce` |
-| `pipeline` | An array of JSON objects describing the pipeline operations to filter or modify the change events output. For example, [{"$match": {"ns.coll": {"$regex": /^(collection1|collection2)$/}}}] will set your source connector to listen to the "collection1" and "collection2" collections only. | No | `[]` | `value` |
-| `producer.override.compression.type` | The compression type for all data generated by the producer. Can be none, gzip, snappy, lz4, or zstd. Defaults to none. | No | `none` | `none` |
-| `topic.separator` | Separator to use when joining prefix, database, collection, and suffix values. This generates the name of the Kafka topic to publish data to. Used by the 'DefaultTopicMapper'. | No | `.` | `.` |
+| `pipeline` | An array of JSON objects describing the pipeline operations to filter or modify the change events output.<br><br>For example, [{"\$match": {"ns.coll": {"\$regex": /^(collection1\|collection2)\$/}}}] will set your source connector to listen to the "collection1" and "collection2" collections only. | No | `[]` | `value` |
+| `producer.override`<br>`compression.type` | The compression type for all data generated by the producer. Can be none, gzip, snappy, lz4, or zstd. Defaults to none. | No | `none` | `none` |
+| `topic.separator` | Separator to use when joining prefix, database, collection, and suffix values.<br><br>This generates the name of the Kafka topic to publish data to Used by the 'DefaultTopicMapper'. | No | `.` | `.` |
 | `topic.suffix` | Suffix to append to database and collection names to generate the name of the Kafka topic to publish data to. | No | `N/A` | `ecommerce.orders` |
 
 ### Sink-Specific Configurations
@@ -150,8 +146,7 @@ These fields are specific to sink connectors (Kafka → MongoDB):
 | Field | Description | Required | Default | Example |
 |-------|-------------|----------|---------|---------|
 | `topics` | Identifies the topic name or a comma-separated list of topic names. | Yes | `N/A` | `ecommerce.orders` |
-| `consumer.override.auto.offset.reset` | Defines the behavior of the consumer when there is no committed position (which occurs when the group is first initialized) or when an offset is out of range. You can choose either to reset the position to the "earliest" offset or the "latest" offset (the default). | No | `N/A` | `latest` |
-| `max.poll.interval.ms` | The maximum delay between subsequent consume requests to Kafka. This configuration property may be used to improve the performance of the connector, if the connector cannot send records to the sink system. Defaults to 300000 milliseconds (5 minutes). | No | `1000` | `1000` |
+| `consumer.override.auto`<br>`offset.reset` | Defines the behavior of the consumer when there is no committed position (which occurs when the group is first initialized) or when an offset is out of range.<br><br>You can choose either to reset the position to the "earliest" offset or the "latest" offset (the default). | No | `N/A` | `latest` |
 
 ## Configuration Validation
 

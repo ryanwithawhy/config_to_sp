@@ -302,7 +302,6 @@ def main():
     print(f"  Confluent Cluster ID: {main_config['confluent-cluster-id']}")
     print(f"  Confluent REST Endpoint: {main_config['confluent-rest-endpoint']}")
     print(f"  Stream Processor URL: {main_config['mongodb-stream-processor-instance-url']}")
-    print(f"  Stream Processor Prefix: {main_config['stream-processor-prefix']}")
     print(f"  Kafka Connection Name: {main_config['kafka-connection-name']}")
     print(f"  MongoDB Source Cluster Name: {main_config['mongodb-cluster-name']}")
     print(f"  MongoDB Source Connection Name: {main_config['mongodb-connection-name']}")

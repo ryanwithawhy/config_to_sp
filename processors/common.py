@@ -32,7 +32,6 @@ def validate_main_config(config: Dict[str, Any]) -> bool:
         "confluent-cluster-id", 
         "confluent-rest-endpoint",
         "mongodb-stream-processor-instance-url",
-        "stream-processor-prefix",
         "kafka-connection-name",
         "mongodb-connection-name",
         "mongodb-cluster-name",

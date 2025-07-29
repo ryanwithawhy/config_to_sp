@@ -10,3 +10,4 @@ sources
 config.json
 files/
 .env.integration
+README.md.backup

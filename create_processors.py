@@ -15,7 +15,6 @@ Main config format:
     "mongodb-stream-processor-instance-url": "mongodb://your-stream-processor-instance-url/",
     "mongodb-tenant-name": "your-stream-instance-name",
     "mongodb-group-id": "your-24-char-mongodb-group-id",
-    "stream-processor-prefix": "your-prefix",
     "kafka-connection-name": "kafka-connection-name",
     "mongodb-cluster-name": "your-cluster-name",
     "mongodb-connection-name": "mongodb-connection",
