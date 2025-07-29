@@ -30,7 +30,7 @@ To use this project you create a main configuration file with a few MongoDB Atla
 1. **Clone the project**:
    ```bash
    git clone <repository-url>
-   cd managed_config_to_atlas_stream_processing
+   cd kafka_connector_to_atlas_stream_processing
    ```
 
 2. **Install dependencies**:
