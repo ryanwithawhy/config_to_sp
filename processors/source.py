@@ -171,6 +171,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         # Extract output JSON format parameter
         output_json_format = connector_config.get("output.json.format")  # default is "DefaultJson" in CSV
         
+        # Extract startup mode parameter
+        startup_mode = connector_config.get("startup.mode")  # ALLOW latest, copy_existing in CSV
+        
         # Map connector format to Stream Processing format
         format_mapping = {
             "ExtendedJson": "canonicalJson",
@@ -182,6 +185,14 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         # Convert string boolean values to actual booleans for publish.full.document.only
         if isinstance(publish_full_document_only, str):
             publish_full_document_only = publish_full_document_only.lower() in ('true', '1', 'yes', 'on')
+        
+        # Convert startup.mode to initialSync.enable boolean
+        initial_sync_enable = None
+        if startup_mode is not None:
+            if startup_mode == "latest":
+                initial_sync_enable = False  # Skip existing data, start from latest changes
+            elif startup_mode == "copy_existing":
+                initial_sync_enable = True   # Sync existing data first, then stream changes
         
         # Construct topic name with optional suffix and collection
         if collection:
@@ -234,7 +245,8 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
                         topic_separator=topic_separator,
                         topic_suffix=topic_suffix,
                         compression_type=compression_type,
-                        output_json_format=mapped_output_format
+                        output_json_format=mapped_output_format,
+                        initial_sync_enable=initial_sync_enable
                     )
                     
                     if stream_processor_success:

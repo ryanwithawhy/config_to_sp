@@ -265,7 +265,8 @@ def create_stream_processor(
     topic_suffix: Optional[str] = None,
     compression_type: Optional[str] = None,
     output_json_format: Optional[str] = None,
-    max_poll_interval_ms: Optional[str] = None
+    max_poll_interval_ms: Optional[str] = None,
+    initial_sync_enable: Optional[bool] = None
 ) -> bool:
     """
     Create a stream processor using mongosh and sp.createStreamProcessor.
@@ -293,6 +294,7 @@ def create_stream_processor(
         compression_type: Compression type for Kafka producer (none, gzip, snappy, lz4, zstd)
         output_json_format: JSON output format for Kafka messages (canonicalJson, relaxedJson)
         max_poll_interval_ms: Maximum delay between subsequent consume requests to Kafka (for sink processors)
+        initial_sync_enable: Whether to enable initial sync of existing data (True=copy_existing, False=latest, None=not specified)
         
     Returns:
         tuple: (success: bool, was_created: bool, processor_name: str)
@@ -364,6 +366,10 @@ def create_stream_processor(
                     # Continue without adding pipeline to config
             elif isinstance(pipeline, list) and pipeline:  # Only add if not empty list
                 source_config["pipeline"] = pipeline
+        
+        # Add initial sync configuration if specified
+        if initial_sync_enable is not None:
+            source_config["initialSync"] = {"enable": initial_sync_enable}
         
         # Add config to source stage if any parameters were set
         if source_config:
@@ -511,6 +517,132 @@ def create_stream_processor(
         return False
     except Exception as e:
         print(f"✗ Unexpected error creating stream processor {stream_processor_name}: {e}")
+        return False
+
+
+def list_stream_processors(
+    connection_user: str,
+    connection_password: str,
+    stream_processor_url: str
+) -> List[str]:
+    """
+    List all stream processors in a MongoDB Atlas Stream Processing instance.
+    
+    Args:
+        connection_user: MongoDB user for authentication
+        connection_password: MongoDB password for authentication  
+        stream_processor_url: MongoDB stream processor instance URL
+        
+    Returns:
+        List of stream processor names, empty list on error
+    """
+    
+    # Ensure URL ends with exactly one slash
+    if not stream_processor_url.endswith('/'):
+        stream_processor_url += '/'
+    
+    # JavaScript command to list all stream processors
+    js_command = 'sp.listStreamProcessors().map(p => p.name).join("\\n")'
+    
+    # Build mongosh command
+    mongosh_cmd = [
+        'mongosh',
+        stream_processor_url,
+        '--tls',
+        '--authenticationDatabase', 'admin',
+        '--username', connection_user,
+        '--password', connection_password,
+        '--eval', js_command
+    ]
+    
+    try:
+        print("Listing stream processors...")
+        result = subprocess.run(mongosh_cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            # Parse the output to extract processor names
+            output_lines = result.stdout.strip().split('\n')
+            # Filter out mongosh connection messages and empty lines
+            processor_names = []
+            for line in output_lines:
+                line = line.strip()
+                if line and not line.startswith('Current Mongosh Log ID:') and not line.startswith('Connecting to:') and not line.startswith('Using MongoDB:') and not line.startswith('Using Mongosh:') and not line.startswith('For mongosh info see:'):
+                    processor_names.append(line)
+            
+            print(f"✓ Found {len(processor_names)} stream processor(s)")
+            return processor_names
+        else:
+            print(f"✗ Failed to list stream processors")
+            print(f"  Error: {result.stderr}")
+            return []
+            
+    except subprocess.TimeoutExpired:
+        print(f"✗ Timeout listing stream processors")
+        return []
+    except Exception as e:
+        print(f"✗ Unexpected error listing stream processors: {e}")
+        return []
+
+
+def destroy_stream_processor(
+    connection_user: str,
+    connection_password: str,
+    stream_processor_url: str,
+    processor_name: str
+) -> bool:
+    """
+    Destroy/delete a stream processor in a MongoDB Atlas Stream Processing instance.
+    
+    Args:
+        connection_user: MongoDB user for authentication
+        connection_password: MongoDB password for authentication  
+        stream_processor_url: MongoDB stream processor instance URL
+        processor_name: Name of the stream processor to destroy
+        
+    Returns:
+        True if processor was destroyed successfully, False on error
+    """
+    
+    # Ensure URL ends with exactly one slash
+    if not stream_processor_url.endswith('/'):
+        stream_processor_url += '/'
+    
+    # Use bracket notation to handle processor names with special characters
+    js_command = f'sp["{processor_name}"].drop()'
+    
+    # Build mongosh command
+    mongosh_cmd = [
+        'mongosh',
+        stream_processor_url,
+        '--tls',
+        '--authenticationDatabase', 'admin',
+        '--username', connection_user,
+        '--password', connection_password,
+        '--eval', js_command
+    ]
+    
+    try:
+        print(f"Destroying stream processor: {processor_name}")
+        result = subprocess.run(mongosh_cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            print(f"✓ Successfully destroyed stream processor: {processor_name}")
+            return True
+        else:
+            # Check if processor doesn't exist
+            if "does not exist" in result.stderr.lower() or "not found" in result.stderr.lower():
+                print(f"⚠ Stream processor does not exist: {processor_name}")
+                return True  # Consider this a success since the goal is achieved
+            else:
+                print(f"✗ Failed to destroy stream processor {processor_name}")
+                print(f"  Error: {result.stderr}")
+                return False
+                
+    except subprocess.TimeoutExpired:
+        print(f"✗ Timeout destroying stream processor {processor_name}")
+        return False
+    except Exception as e:
+        print(f"✗ Unexpected error destroying stream processor {processor_name}: {e}")
         return False
 
 
