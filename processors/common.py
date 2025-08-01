@@ -103,6 +103,51 @@ def check_atlas_auth_with_login() -> bool:
         return False
 
 
+def check_connection_exists(
+    group_id: str,
+    tenant_name: str,
+    connection_name: str
+) -> bool:
+    """Check if a connection already exists in the Atlas Stream Processing instance."""
+    try:
+        # List connections using Atlas CLI
+        cmd = [
+            'atlas', 'streams', 'connections', 'list',
+            '--projectId', group_id,
+            '--instance', tenant_name,
+            '--output', 'json'
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            # Parse JSON response and check if connection exists
+            try:
+                connections = json.loads(result.stdout)
+                # Check if it's a list or has a 'results' field
+                if isinstance(connections, list):
+                    connection_list = connections
+                elif isinstance(connections, dict) and 'results' in connections:
+                    connection_list = connections['results']
+                else:
+                    connection_list = []
+                
+                for conn in connection_list:
+                    if conn.get('name') == connection_name:
+                        return True
+                return False
+            except json.JSONDecodeError:
+                # If we can't parse JSON, assume connection doesn't exist
+                return False
+        else:
+            # If list command fails, assume connection doesn't exist
+            return False
+            
+    except Exception:
+        # If any error occurs, assume connection doesn't exist
+        return False
+
+
 def create_mongodb_connection(
     group_id: str,
     tenant_name: str,
@@ -112,6 +157,11 @@ def create_mongodb_connection(
     role_type: str = "BUILT_IN"
 ) -> tuple[bool, bool]:
     """Create a MongoDB Atlas Stream Processing connection using Atlas CLI."""
+    
+    # Check if connection already exists
+    if check_connection_exists(group_id, tenant_name, connection_name):
+        print(f"⚠ MongoDB connection already exists, reusing: {connection_name}")
+        return True, False  # success, was_not_created
     
     # Create connection configuration
     connection_config = {
@@ -176,6 +226,11 @@ def create_kafka_connection(
     kafka_api_secret: str
 ) -> tuple[bool, bool]:
     """Create a MongoDB Atlas Stream Processing Kafka connection using Atlas CLI."""
+    
+    # Check if connection already exists
+    if check_connection_exists(group_id, tenant_name, connection_name):
+        print(f"⚠ Kafka connection already exists, reusing: {connection_name}")
+        return True, False  # success, was_not_created
     
     # Convert bootstrap servers from REST endpoint
     bootstrap_servers = confluent_rest_endpoint.replace('https://', '').replace(':443', ':9092')
@@ -334,7 +389,11 @@ def create_stream_processor(
         # Only add collection if specified (None means watch entire database)
         if collection:
             source_stage["coll"] = collection
-        
+
+        # Add initial sync configuration if specified
+        if initial_sync_enable is not None:
+            source_stage["initialSync"] = {"enable": initial_sync_enable}    
+
         # Add config section if any change stream parameters are provided
         source_config = {}
         
@@ -352,6 +411,7 @@ def create_stream_processor(
         if full_document_only is not None:
             source_config["fullDocumentOnly"] = full_document_only
         
+
         # Handle pipeline parameter - convert from string to array if needed
         if pipeline is not None:
             if isinstance(pipeline, str):
@@ -366,10 +426,6 @@ def create_stream_processor(
                     # Continue without adding pipeline to config
             elif isinstance(pipeline, list) and pipeline:  # Only add if not empty list
                 source_config["pipeline"] = pipeline
-        
-        # Add initial sync configuration if specified
-        if initial_sync_enable is not None:
-            source_config["initialSync"] = {"enable": initial_sync_enable}
         
         # Add config to source stage if any parameters were set
         if source_config:
