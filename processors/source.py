@@ -32,7 +32,7 @@ import requests
 import argparse
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Import shared functions
 from .common import load_json_file, create_kafka_connection, check_atlas_auth_with_login, create_mongodb_connection, validate_main_config, create_stream_processor, create_topic
@@ -43,17 +43,19 @@ from .config_validator import validate_connector_config
 
 
 
-def validate_source_config(config: Dict[str, Any], filename: str) -> bool:
-    """Validate a source connector configuration file using CSV-based validation."""
+def validate_source_config(config: Dict[str, Any], filename: str) -> tuple[bool, List[str]]:
+    """Validate a source connector configuration file using CSV-based validation.
+    
+    Returns:
+        tuple: (is_valid: bool, issues: List[str])
+    """
     # Use CSV-based validation
     result = validate_connector_config(config)
     
-    if not result.is_valid:
-        for error in result.error_messages:
-            print(f"Error: {error} in {filename}")
-        return False
-    
-    return True
+    if result.is_valid:
+        return True, []
+    else:
+        return False, result.error_messages
 
 
 
@@ -88,6 +90,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     print(f"Found {len(json_files)} .json files to process")
     print("-" * 50)
     
+    # Track skipped configurations and issues
+    skipped_configs = {}  # filename -> list of issues
+    
     # Create connections once (using first connector config for Kafka auth)
     kafka_connection_created = False
     kafka_connection_was_created = False
@@ -95,11 +100,16 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
     mongodb_connection_was_created = False
     first_connector_config = None
     
+    # Find first valid config for connection setup
     for json_file in json_files:
         connector_config = load_json_file(str(json_file))
-        if connector_config and validate_source_config(connector_config, json_file.name):
-            first_connector_config = connector_config
-            break
+        if connector_config:
+            is_valid, issues = validate_source_config(connector_config, json_file.name)
+            if is_valid:
+                first_connector_config = connector_config
+                break
+            else:
+                skipped_configs[json_file.name] = issues
     
     # Create MongoDB source connection
     print(f"\nCreating shared MongoDB source connection: {main_config['mongodb-connection-name']}")
@@ -139,7 +149,12 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
             continue
         
         # Validate connector config
-        if not validate_source_config(connector_config, json_file.name):
+        is_valid, issues = validate_source_config(connector_config, json_file.name)
+        if not is_valid:
+            skipped_configs[json_file.name] = issues
+            print(f"✗ Skipping {json_file.name} due to validation issues:")
+            for issue in issues:
+                print(f"  - {issue}")
             continue
         
         # Extract required fields
@@ -278,6 +293,16 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         print(f"  Stream processors: {stream_processor_created_count}/{total_count} created successfully (processors {existing_names} already exist)")
     else:
         print(f"  Stream processors: {stream_processor_created_count}/{total_count} created successfully")
+    
+    # Display skipped configurations summary
+    if skipped_configs:
+        print(f"\n⚠ SKIPPED CONFIGURATIONS ({len(skipped_configs)} files):")
+        for filename, issues in skipped_configs.items():
+            print(f"  - {filename}:")
+            for issue in issues:
+                print(f"    • {issue}")
+    else:
+        print(f"\n✓ All configurations processed successfully")
 
 
 def main():

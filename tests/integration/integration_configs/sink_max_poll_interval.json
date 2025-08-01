@@ -1,5 +1,0 @@
-{
-    "connector.class": "MongoDbAtlasSink",
-    "name": "sink-max-poll-interval",
-    "max.poll.interval.ms": "1000"
-}

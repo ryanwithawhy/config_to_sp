@@ -1,6 +1,0 @@
-{
-    "connector.class": "MongoDbAtlasSource",
-    "name": "source-with-custom-separator",
-    "topic.separator": "_",
-    "topic.suffix": "data"
-}

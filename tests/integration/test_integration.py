@@ -15,6 +15,13 @@ Test config files should be minimal and only contain:
 - The specific fields being tested
 
 All other fields (credentials, topics, database, etc.) come from env variables.
+
+Usage:
+    python test_integration.py                              # Run all tests
+    python test_integration.py --config <filename.json>    # Run specific test
+    python test_integration.py --config <filename.json> -v # Run specific test with verbose output
+    python test_integration.py --config <filename.json> --audit # Run specific test with audit mode
+    python test_integration.py --audit                     # Run all tests with audit mode
 """
 
 import os
@@ -340,6 +347,11 @@ class TestE2EIntegration(unittest.TestCase):
         
         print(f"Test config: {json.dumps(test_config, indent=2)}")
         
+        # Check if this test is expected to fail
+        should_fail = test_config.get("shouldFail", False)
+        if should_fail:
+            print(f"⚠️  This test is EXPECTED TO FAIL")
+        
         # Create full config
         full_config = self.create_full_config(test_config)
         processor_name = full_config["name"]
@@ -371,18 +383,57 @@ class TestE2EIntegration(unittest.TestCase):
         print(f"Checking if processor '{processor_name}' exists...")
         processor_exists = self.check_processor_exists(processor_name)
         
-        if processor_exists:
-            print(f"✅ Processor '{processor_name}' created successfully!")
-            # Capture audit stats before adding to cleanup list
-            self.audit_processor_stats(processor_name, test_config, full_config)
-            # Add to cleanup list
-            self.__class__.created_processors.append(processor_name)
+        # Handle shouldFail logic
+        if should_fail:
+            if processor_exists:
+                # Unexpected success when failure was expected - test fails
+                print(f"❌ Test FAILED: Expected failure but processor '{processor_name}' was created successfully!")
+                self.audit_processor_stats(processor_name, test_config, full_config)
+                self.__class__.created_processors.append(processor_name)
+                self.log_test_result(config_file.name, False, f"Expected failure but processor was created")
+                self.fail(f"Test expected to fail but processor '{processor_name}' was created successfully")
+            else:
+                # Expected failure occurred - test passes
+                print(f"✅ Test PASSED: Expected failure occurred for processor '{processor_name}'")
+                self.audit_failed_processor(processor_name, test_config, full_config, result)
+                self.log_test_result(config_file.name, True, "Expected failure occurred")
         else:
-            # Still capture audit data for failed processors
-            self.audit_failed_processor(processor_name, test_config, full_config, result)
-            self.fail(f"Processor '{processor_name}' was not created. Check output above.")
+            # Normal logic - processor creation success means test passes
+            if processor_exists:
+                print(f"✅ Processor '{processor_name}' created successfully!")
+                # Capture audit stats before adding to cleanup list
+                self.audit_processor_stats(processor_name, test_config, full_config)
+                # Add to cleanup list
+                self.__class__.created_processors.append(processor_name)
+                # Log successful test
+                self.log_test_result(config_file.name, True)
+            else:
+                # Processor creation failed - test fails
+                print(f"❌ Processor '{processor_name}' was not created")
+                # Still capture audit data for failed processors
+                self.audit_failed_processor(processor_name, test_config, full_config, result)
+                # Log failed test
+                self.log_test_result(config_file.name, False, f"Processor '{processor_name}' was not created")
+                self.fail(f"Processor '{processor_name}' was not created. Check output above.")
         
         return processor_name
+    
+    def log_test_result(self, config_name: str, success: bool, error_message: str = ""):
+        """Log test result to a simple text file."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        status = "PASS" if success else "FAIL"
+        
+        # Put the log file in the current audit directory if audit mode is enabled
+        if hasattr(self.__class__, 'audit_mode') and self.__class__.audit_mode and self.__class__.audit_dir:
+            log_file = self.__class__.audit_dir / "test_results.txt"
+        else:
+            # Fallback to audit_results directory if audit mode is not enabled
+            audit_base_dir = Path(__file__).parent / "audit_results"
+            audit_base_dir.mkdir(exist_ok=True)
+            log_file = audit_base_dir / "test_results.txt"
+        
+        with open(log_file, 'a') as f:
+            f.write(f"{timestamp} | {status} | {config_name} | {error_message}\n")
     
     def test_all_integration_configs(self):
         """Discover and test all config files in integration_configs/."""
@@ -390,6 +441,16 @@ class TestE2EIntegration(unittest.TestCase):
         
         if not integration_configs_dir.exists():
             self.skipTest("No integration_configs directory found")
+        
+        # Check if specific config file was requested
+        if hasattr(self.__class__, 'target_config') and self.__class__.target_config:
+            config_file = integration_configs_dir / self.__class__.target_config
+            if not config_file.exists():
+                self.fail(f"Requested config file not found: {self.__class__.target_config}")
+            
+            print(f"Running specific config test: {self.__class__.target_config}")
+            self.run_integration_test_for_config(config_file)
+            return
         
         config_files = list(integration_configs_dir.glob("*.json"))
         
@@ -414,6 +475,23 @@ if __name__ == '__main__':
     if '-dlq' in sys.argv:
         os.environ['DEBUG_DLQ'] = 'true'
         sys.argv.remove('-dlq')
+    
+    # Handle custom --config flag before unittest processes arguments
+    target_config = None
+    if '--config' in sys.argv:
+        config_index = sys.argv.index('--config')
+        if config_index + 1 < len(sys.argv):
+            target_config = sys.argv[config_index + 1]
+            sys.argv.remove('--config')
+            sys.argv.remove(target_config)
+            TestE2EIntegration.target_config = target_config
+            print(f"🎯 Target config specified: {target_config}")
+        else:
+            print("❌ Error: --config requires a filename argument")
+            print("Usage: python test_integration.py --config <filename.json>")
+            sys.exit(1)
+    else:
+        TestE2EIntegration.target_config = None
     
     # Handle custom --audit flag before unittest processes arguments
     if '--audit' in sys.argv:

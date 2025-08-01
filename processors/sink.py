@@ -160,7 +160,9 @@ def process_connector_configs(main_config: Dict[str, Any], configs_folder: str) 
         is_valid, issues = validate_sink_config(connector_config, json_file.name)
         if not is_valid:
             skipped_configs[json_file.name] = issues
-            print(f"✗ Skipping {json_file.name} due to validation issues")
+            print(f"✗ Skipping {json_file.name} due to validation issues:")
+            for issue in issues:
+                print(f"  - {issue}")
             continue
         
         # Extract required fields

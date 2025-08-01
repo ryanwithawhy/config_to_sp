@@ -1,5 +1,6 @@
 {
     "connector.class": "MongoDbAtlasSource",
-    "name": "with-simplified-json-format",
+    "name": "source.output.json.format.simplifiedjson",
+    "topic.prefix": "test",
     "output.json.format": "SimplifiedJson"
 }

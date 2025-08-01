@@ -1,5 +1,6 @@
 {
     "connector.class": "MongoDbAtlasSource",
-    "name": "source-extended-json-processor",
+    "name": "source.output.json.format.extendedjson",
+    "topic.prefix": "test",
     "output.json.format": "ExtendedJson"
 }
