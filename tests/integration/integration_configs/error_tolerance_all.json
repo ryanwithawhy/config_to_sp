@@ -1,6 +1,6 @@
 {
     "connector.class": "MongoDbAtlasSink",
-    "name": "errors-tolerance-all",
+    "name": "error-tolerance-all",
     "consumer.override.auto.offset.reset": "earliest",
     "errors.tolerance": "all"
 }

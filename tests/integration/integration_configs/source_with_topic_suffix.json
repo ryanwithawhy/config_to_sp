@@ -1,5 +1,5 @@
 {
     "connector.class": "MongoDbAtlasSource",
-    "name": "test-topic-suffix-processor",
+    "name": "source-with-topic-suffix-processor",
     "topic.suffix": "events"
 }

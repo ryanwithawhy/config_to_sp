@@ -25,6 +25,7 @@ import json
 import subprocess
 import shutil
 from pathlib import Path
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -41,6 +42,10 @@ class TestE2EIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class-level test fixtures."""
+        # Audit mode is set by main section before unittest runs
+        if not hasattr(cls, 'audit_mode'):
+            cls.audit_mode = False
+            cls.audit_dir = None
         # Ensure Atlas authentication (silently)
         try:
             subprocess.run(['atlas', 'auth', 'login'], capture_output=True, text=True)
@@ -210,6 +215,119 @@ class TestE2EIntegration(unittest.TestCase):
         
         subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     
+    def audit_processor_stats(self, processor_name: str, test_config: dict, full_config: dict):
+        """Capture processor stats and save to audit directory with configs."""
+        if not self.__class__.audit_mode:
+            return
+            
+        # Create processor-specific directory
+        processor_dir = self.__class__.audit_dir / processor_name
+        processor_dir.mkdir(exist_ok=True)
+        
+        # Save initial test config
+        test_config_file = processor_dir / "initial_test_config.json"
+        with open(test_config_file, 'w') as f:
+            json.dump(test_config, f, indent=2)
+        
+        # Save full generated config (what customer would provide)
+        full_config_file = processor_dir / "full_customer_config.json"
+        with open(full_config_file, 'w') as f:
+            json.dump(full_config, f, indent=2)
+        
+        # Capture stats
+        stats_file = processor_dir / "stats_output.txt"
+        try:
+            # Use authentication like in common.py
+            stream_processor_url = os.getenv('test_stream_processor_url')
+            if not stream_processor_url.endswith('/'):
+                stream_processor_url += '/'
+                
+            cmd = [
+                "mongosh", 
+                stream_processor_url,
+                "--tls",
+                "--authenticationDatabase", "admin",
+                "--username", os.getenv('test_db_user'),
+                "--password", os.getenv('test_db_password'),
+                "--eval", f"sp['{processor_name}'].stats()"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            # Write stats (success or failure) to file
+            with open(stats_file, 'w') as f:
+                f.write(f"Processor: {processor_name}\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write(f"Command: {' '.join(cmd)}\n")
+                f.write(f"Return Code: {result.returncode}\n")
+                f.write(f"{'='*60}\n\n")
+                
+                if result.returncode == 0:
+                    f.write("✅ STATS CAPTURED SUCCESSFULLY\n\n")
+                    f.write("STDOUT:\n")
+                    f.write(result.stdout)
+                    if result.stderr:
+                        f.write("\n\nSTDERR:\n")
+                        f.write(result.stderr)
+                else:
+                    f.write("❌ ERROR CAPTURING STATS\n\n")
+                    f.write("STDOUT:\n")
+                    f.write(result.stdout or "(empty)")
+                    f.write("\n\nSTDERR:\n")
+                    f.write(result.stderr or "(empty)")
+            
+            if result.returncode == 0:
+                print(f"📊 Audit data saved for '{processor_name}' to {processor_dir}")
+            else:
+                print(f"⚠️  Stats capture failed for '{processor_name}', error logged to {processor_dir}")
+                
+        except Exception as e:
+            # Write exception to stats file
+            with open(stats_file, 'w') as f:
+                f.write(f"Processor: {processor_name}\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write(f"{'='*60}\n\n")
+                f.write("❌ EXCEPTION DURING STATS CAPTURE\n\n")
+                f.write(f"Exception: {str(e)}\n")
+                f.write(f"Exception Type: {type(e).__name__}\n")
+            
+            print(f"⚠️  Exception during audit for '{processor_name}', logged to {processor_dir}: {e}")
+    
+    def audit_failed_processor(self, processor_name: str, test_config: dict, full_config: dict, create_result: subprocess.CompletedProcess):
+        """Capture audit data for failed processor creation."""
+        if not self.__class__.audit_mode:
+            return
+            
+        # Create processor-specific directory
+        processor_dir = self.__class__.audit_dir / processor_name
+        processor_dir.mkdir(exist_ok=True)
+        
+        # Save initial test config
+        test_config_file = processor_dir / "initial_test_config.json"
+        with open(test_config_file, 'w') as f:
+            json.dump(test_config, f, indent=2)
+        
+        # Save full generated config (what customer would provide)
+        full_config_file = processor_dir / "full_customer_config.json"
+        with open(full_config_file, 'w') as f:
+            json.dump(full_config, f, indent=2)
+        
+        # Save creation failure details
+        failure_file = processor_dir / "creation_failure.txt"
+        with open(failure_file, 'w') as f:
+            f.write(f"Processor: {processor_name}\n")
+            f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+            f.write(f"Status: PROCESSOR CREATION FAILED\n")
+            f.write(f"Return Code: {create_result.returncode}\n")
+            f.write(f"{'='*60}\n\n")
+            f.write("❌ PROCESSOR CREATION FAILED\n\n")
+            f.write("CREATE_PROCESSORS.PY STDOUT:\n")
+            f.write(create_result.stdout or "(empty)")
+            f.write("\n\nCREATE_PROCESSORS.PY STDERR:\n")
+            f.write(create_result.stderr or "(empty)")
+        
+        print(f"📋 Audit data saved for failed processor '{processor_name}' to {processor_dir}")
+    
     def run_integration_test_for_config(self, config_file: Path):
         """Run an integration test for a specific config file."""
         print(f"\n{'='*80}")
@@ -255,23 +373,14 @@ class TestE2EIntegration(unittest.TestCase):
         
         if processor_exists:
             print(f"✅ Processor '{processor_name}' created successfully!")
+            # Capture audit stats before adding to cleanup list
+            self.audit_processor_stats(processor_name, test_config, full_config)
             # Add to cleanup list
             self.__class__.created_processors.append(processor_name)
         else:
-            # If processor wasn't created, check if it was a validation/config issue vs connection issue
-            output_text = (result.stdout + " " + result.stderr).lower()
-            
-            connection_issues = [
-                "connection", "authentication", "network", "timeout",
-                "cluster", "endpoint", "permission", "atlas"
-            ]
-            
-            is_connection_issue = any(issue in output_text for issue in connection_issues)
-            
-            if is_connection_issue:
-                self.skipTest(f"Skipping test due to connection/auth issues: {result.stdout}")
-            else:
-                self.fail(f"Processor '{processor_name}' was not created. Check output above.")
+            # Still capture audit data for failed processors
+            self.audit_failed_processor(processor_name, test_config, full_config, result)
+            self.fail(f"Processor '{processor_name}' was not created. Check output above.")
         
         return processor_name
     
@@ -301,9 +410,25 @@ if __name__ == '__main__':
     import sys
     import os
     
-    # Handle custom -dlq flag before unittest processes arguments
+    # Handle custom flags before unittest processes arguments
     if '-dlq' in sys.argv:
         os.environ['DEBUG_DLQ'] = 'true'
         sys.argv.remove('-dlq')
+    
+    # Handle custom --audit flag before unittest processes arguments
+    if '--audit' in sys.argv:
+        sys.argv.remove('--audit')
+        # Set up audit mode on the test class
+        TestE2EIntegration.audit_mode = True
+        # Create audit directory with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        audit_base_dir = Path(__file__).parent / "audit_results"
+        audit_base_dir.mkdir(exist_ok=True)
+        TestE2EIntegration.audit_dir = audit_base_dir / timestamp
+        TestE2EIntegration.audit_dir.mkdir(parents=True, exist_ok=True)
+        print(f"📋 Audit mode enabled. Results will be saved to: {TestE2EIntegration.audit_dir}")
+    else:
+        TestE2EIntegration.audit_mode = False
+        TestE2EIntegration.audit_dir = None
     
     unittest.main(verbosity=2)

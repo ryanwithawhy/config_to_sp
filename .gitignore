@@ -11,3 +11,4 @@ config.json
 files/
 .env.integration
 README.md.backup
+tests/integration/audit_results/

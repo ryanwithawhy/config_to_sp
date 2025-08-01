@@ -1,5 +1,5 @@
 {
     "connector.class": "MongoDbAtlasSource",
-    "name": "test-default-json-processor",
+    "name": "source-default-json-processor",
     "output.json.format": "DefaultJson"
 }

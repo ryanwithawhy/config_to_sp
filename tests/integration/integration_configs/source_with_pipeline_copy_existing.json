@@ -1,6 +1,5 @@
 {
     "connector.class": "MongoDbAtlasSource",
-    "name": "test-pipeline-processor",
-    "pipeline": "[{\"$match\": {\"ns.coll\": {\"$regex\": \"^(orders|users)$\"}}}]",
+    "name": "source-with-pipeline-copy-existing",
     "startup.mode": "copy_existing"
 }
